@@ -1,0 +1,8 @@
+name = "angry-curds-2"
+type = "javascript"
+pages_build_output_dir = "dist"
+
+[build]
+command = "npm run build"
+cwd = "./"
+watch_paths = ["src/**/*.ts", "src/**/*.tsx", "public/**/*"]
