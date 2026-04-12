@@ -2,7 +2,7 @@ import { Graphics } from "pixi.js";
 import { screenToWorld } from "../engine/CoordinateSystem.js";
 import type { Engine } from "../engine/Engine.js";
 import type { Slingshot } from "./Slingshot.js";
-import type { CheeseProjectile } from "./CheeseProjectile.js";
+import type { Launchable } from "./Launchable.js";
 import type { LaunchConfig, TrajectoryPreviewConfig } from "./SlingshotConfig.js";
 import { clampPull, computeLaunchVelocity, computeTrajectoryPoints } from "./launchMath.js";
 
@@ -17,7 +17,7 @@ export class SlingshotController {
   private readonly previewConfig: TrajectoryPreviewConfig;
   private readonly trajectoryGfx: Graphics;
 
-  private activeCheese: CheeseProjectile | null = null;
+  private activeCheese: Launchable | null = null;
   private dragging = false;
   private dragWorldPos: { x: number; y: number } = { x: 0, y: 0 };
 
@@ -50,7 +50,7 @@ export class SlingshotController {
   }
 
   /** Set the cheese that's currently loaded on the slingshot. */
-  setCheese(cheese: CheeseProjectile | null): void {
+  setCheese(cheese: Launchable | null): void {
     this.activeCheese = cheese;
     this.dragging = false;
     this.trajectoryGfx.clear();

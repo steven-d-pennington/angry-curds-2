@@ -68,9 +68,49 @@ export interface TrajectoryPreviewConfig {
   dotAlpha: number;
 }
 
+export interface BrieConfig {
+  /** Radius of Brie projectile in world meters */
+  radius: number;
+  /** Physics density */
+  density: number;
+  /** Physics restitution (bounciness) */
+  restitution: number;
+  /** Physics friction */
+  friction: number;
+  /** Fill color (cream body) */
+  color: number;
+  /** Rind arc color */
+  rindColor: number;
+}
+
+export interface BrieSubConfig {
+  /** Number of sub-projectiles on split */
+  count: number;
+  /** Radius of each sub-projectile in world meters */
+  radius: number;
+  /** Physics density */
+  density: number;
+  /** Physics restitution */
+  restitution: number;
+  /** Physics friction */
+  friction: number;
+  /** Fill color */
+  color: number;
+}
+
+export interface BrieSplitConfig {
+  /** Fan angle in radians between outer sub-projectiles */
+  spreadAngle: number;
+  /** Speed retention factor on split (0-1) */
+  speedFactor: number;
+}
+
 export interface GameplayConfig {
   slingshot: SlingshotConfig;
   cheese: CheeseConfig;
+  brie: BrieConfig;
+  brieSub: BrieSubConfig;
+  brieSplit: BrieSplitConfig;
   launch: LaunchConfig;
   shotLifecycle: ShotLifecycleConfig;
   trajectoryPreview: TrajectoryPreviewConfig;
@@ -93,6 +133,26 @@ export const DEFAULT_CONFIG: GameplayConfig = {
     restitution: 0.3,
     friction: 0.4,
     color: 0xffa500,
+  },
+  brie: {
+    radius: 0.35,
+    density: 1.5,
+    restitution: 0.4,
+    friction: 0.3,
+    color: 0xfff8e7,
+    rindColor: 0xe8d5a3,
+  },
+  brieSub: {
+    count: 3,
+    radius: 0.2,
+    density: 2.5,
+    restitution: 0.35,
+    friction: 0.3,
+    color: 0xfff8e7,
+  },
+  brieSplit: {
+    spreadAngle: (20 * Math.PI) / 180, // 20 degrees
+    speedFactor: 0.85,
   },
   launch: {
     maxPullDistance: 3.0,

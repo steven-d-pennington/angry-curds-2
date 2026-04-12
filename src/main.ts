@@ -69,6 +69,7 @@ class GameSession {
   private readonly levels: LevelManager;
   private shotManager: ShotManager | null = null;
   private updater: GameplayUpdater | null = null;
+  private splitHandler: ((e: PointerEvent) => void) | null = null;
 
   constructor(engine: Engine, levels: LevelManager) {
     this.engine = engine;
@@ -81,6 +82,10 @@ class GameSession {
     this.shotManager?.destroy();
     if (this.updater) {
       this.engine.removeEntity(this.updater);
+    }
+    if (this.splitHandler) {
+      this.engine.app.canvas.removeEventListener("pointerdown", this.splitHandler);
+      this.splitHandler = null;
     }
     this.engine.destroyAllEntities();
     this.engine.physics.destroyAllDynamic();
@@ -133,6 +138,19 @@ class GameSession {
     shotManager.onAllCheeseUsed = () => {
       console.log("All cheese used — waiting for physics to settle...");
     };
+
+    // Tap-to-split: tapping anywhere (outside card area) while a Brie
+    // is in flight triggers the split ability
+    const CARD_AREA_HEIGHT = 96; // px from bottom — matches card UI zone
+    this.splitHandler = (e: PointerEvent) => {
+      // Ignore taps in the card area at the bottom of the screen
+      if (e.clientY > this.engine.canvasHeight - CARD_AREA_HEIGHT) return;
+      const brie = shotManager.activeBrie;
+      if (brie && brie.canSplit) {
+        brie.activateSplit();
+      }
+    };
+    this.engine.app.canvas.addEventListener("pointerdown", this.splitHandler);
 
     const updater = new GameplayUpdater(
       this.engine,

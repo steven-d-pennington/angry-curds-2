@@ -1,12 +1,20 @@
 import type { Engine } from "../engine/Engine.js";
+import type { Entity } from "../engine/entities/Entity.js";
 import { CheeseProjectile } from "./CheeseProjectile.js";
+import { BrieProjectile } from "./BrieProjectile.js";
 import { Slingshot } from "./Slingshot.js";
 import { SlingshotController } from "./SlingshotController.js";
 import type { GameplayConfig } from "./SlingshotConfig.js";
 
+/** Cheese type identifier matching design doc. */
+export type CheeseType = "cheddar" | "brie";
+
 /**
  * Manages the sequence of cheese shots: loading, launching, and tracking
  * when all cheese are exhausted.
+ *
+ * Supports multiple active projectiles (Brie split produces 3 sub-projectiles).
+ * A shot resolves only when ALL active projectiles have settled or exited.
  */
 export class ShotManager {
   private readonly engine: Engine;
@@ -15,7 +23,10 @@ export class ShotManager {
   private readonly controller: SlingshotController;
 
   private cheeseUsed = 0;
-  private activeCheese: CheeseProjectile | null = null;
+  /** The current cheese loaded on the slingshot (cheddar or brie). */
+  private activePrimary: CheeseProjectile | BrieProjectile | null = null;
+  /** All projectiles that must resolve before the next shot loads. */
+  private readonly activeProjectiles: Set<Entity> = new Set();
   private loadTimer = 0;
   private waitingToLoad = false;
 
@@ -30,6 +41,14 @@ export class ShotManager {
 
   get totalCheese(): number {
     return this.config.shotLifecycle.totalCheese;
+  }
+
+  /** The currently launched Brie (if any) — used by tap-to-split handler. */
+  get activeBrie(): BrieProjectile | null {
+    if (this.activePrimary instanceof BrieProjectile) {
+      return this.activePrimary;
+    }
+    return null;
   }
 
   constructor(engine: Engine, config: GameplayConfig) {
@@ -54,23 +73,52 @@ export class ShotManager {
   }
 
   /**
-   * Must be called each frame (from the engine update loop or manually)
-   * to manage cheese lifecycle timing.
+   * Must be called each frame to manage cheese lifecycle timing.
    */
   update(dt: number): void {
-    // Check if active cheese has resolved
-    if (this.activeCheese && (this.activeCheese.state === "settled" || this.activeCheese.state === "removed")) {
-      // Remove resolved cheese from engine
-      this.engine.removeEntity(this.activeCheese);
-      this.activeCheese = null;
+    // Check if all active projectiles have resolved
+    if (this.activeProjectiles.size > 0) {
+      for (const entity of this.activeProjectiles) {
+        if (entity instanceof CheeseProjectile) {
+          if (entity.state === "settled" || entity.state === "removed") {
+            this.engine.removeEntity(entity);
+            this.activeProjectiles.delete(entity);
+          }
+        } else if (entity instanceof BrieProjectile) {
+          if (entity.state === "settled" || entity.state === "removed" || entity.state === "split") {
+            if (entity.state === "split") {
+              // Parent split — don't remove from engine yet, just stop tracking
+              // Sub-projectiles are tracked separately
+            } else {
+              this.engine.removeEntity(entity);
+            }
+            this.activeProjectiles.delete(entity);
+          }
+        } else {
+          // Sub-projectile: check resolved via custom property
+          const sub = entity as Entity & { isResolved?: boolean };
+          if (sub.isResolved) {
+            this.engine.removeEntity(entity);
+            this.activeProjectiles.delete(entity);
+          }
+        }
+      }
 
-      if (this.remaining <= 0) {
-        this.slingshot.clearBand();
-        this.onAllCheeseUsed?.();
-      } else {
-        // Start timer for next cheese
-        this.waitingToLoad = true;
-        this.loadTimer = 0;
+      // All resolved?
+      if (this.activeProjectiles.size === 0) {
+        // Clean up split parent if it still exists
+        if (this.activePrimary instanceof BrieProjectile && this.activePrimary.state === "split") {
+          this.engine.removeEntity(this.activePrimary);
+        }
+        this.activePrimary = null;
+
+        if (this.remaining <= 0) {
+          this.slingshot.clearBand();
+          this.onAllCheeseUsed?.();
+        } else {
+          this.waitingToLoad = true;
+          this.loadTimer = 0;
+        }
       }
     }
 
@@ -84,31 +132,61 @@ export class ShotManager {
     }
   }
 
-  private loadNextCheese(): void {
-    const cheese = new CheeseProjectile(
-      this.engine,
-      this.config.cheese,
-      this.config.shotLifecycle,
-    );
-
+  /**
+   * Load the next cheese. Accepts an optional type to support
+   * the card-based selection system (defaults to "cheddar").
+   */
+  loadNextCheese(type: CheeseType = "cheddar"): void {
     const anchor = this.slingshot.anchorWorld;
-    cheese.loadAt(anchor.x, anchor.y);
 
-    cheese.onResolved = () => {
-      // Handled in update() — just need the callback registered
-    };
+    if (type === "brie") {
+      const brie = new BrieProjectile(
+        this.engine,
+        this.config.brie,
+        this.config.brieSub,
+        this.config.brieSplit,
+        this.config.shotLifecycle,
+      );
+      brie.loadAt(anchor.x, anchor.y);
 
-    this.engine.addEntity(cheese);
-    this.activeCheese = cheese;
-    this.controller.setCheese(cheese);
+      // When Brie splits, track the sub-projectiles
+      brie.onSplit = (subs) => {
+        for (const sub of subs) {
+          this.activeProjectiles.add(sub);
+          // Wire up sub-projectile resolve callback
+          const s = sub as Entity & { onResolved: (() => void) | null };
+          s.onResolved = () => {
+            // Resolved tracking handled in update()
+          };
+        }
+      };
+
+      this.engine.addEntity(brie);
+      this.activePrimary = brie;
+      this.activeProjectiles.add(brie);
+      this.controller.setCheese(brie);
+    } else {
+      const cheese = new CheeseProjectile(
+        this.engine,
+        this.config.cheese,
+        this.config.shotLifecycle,
+      );
+      cheese.loadAt(anchor.x, anchor.y);
+
+      this.engine.addEntity(cheese);
+      this.activePrimary = cheese;
+      this.activeProjectiles.add(cheese);
+      this.controller.setCheese(cheese);
+    }
   }
 
   destroy(): void {
     this.controller.destroy();
     this.slingshot.destroy();
-    if (this.activeCheese) {
-      this.engine.removeEntity(this.activeCheese);
-      this.activeCheese = null;
+    for (const entity of this.activeProjectiles) {
+      this.engine.removeEntity(entity);
     }
+    this.activeProjectiles.clear();
+    this.activePrimary = null;
   }
 }

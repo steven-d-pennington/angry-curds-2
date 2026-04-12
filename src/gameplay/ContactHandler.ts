@@ -6,8 +6,12 @@ import type { Engine } from "../engine/Engine.js";
 import type { GameState } from "./GameState.js";
 import { audioManager } from "../audio/AudioManager.js";
 
+import type { BrieProjectile } from "./BrieProjectile.js";
+
 interface CheeseUserData {
   type: "cheese";
+  cheeseType?: "brie";
+  brie?: BrieProjectile;
 }
 
 type EntityUserData = BlockUserData | RatUserData | CheeseUserData | null | undefined;
@@ -49,6 +53,14 @@ export function setupContactHandler(engine: Engine, state: GameState): void {
       if (udA?.type === "cheese" || udB?.type === "cheese") {
         audioManager.playSfx("cheeseImpact");
       }
+    }
+
+    // Brie first-contact lockout: any significant contact locks out the split ability
+    if (udA?.type === "cheese" && udA.cheeseType === "brie" && udA.brie) {
+      udA.brie.onFirstContact();
+    }
+    if (udB?.type === "cheese" && udB.cheeseType === "brie" && udB.brie) {
+      udB.brie.onFirstContact();
     }
 
     // Block damage
