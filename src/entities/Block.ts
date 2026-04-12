@@ -1,7 +1,8 @@
-import { Graphics } from "pixi.js";
+import { Sprite, Texture } from "pixi.js";
 import { Vec2, Box, type Body } from "planck";
 import { Entity } from "../engine/entities/Entity.js";
 import type { Engine } from "../engine/Engine.js";
+import { getFrame } from "../engine/AssetLoader.js";
 
 export type BlockMaterial = "cheese_crate" | "wood";
 
@@ -19,14 +20,14 @@ export const MATERIALS: Record<BlockMaterial, MaterialDef> = {
     restitution: 0.2,
     friction: 0.6,
     fractureThreshold: 30,
-    color: 0xe8c547, // yellow/tan
+    color: 0xe8c547,
   },
   wood: {
     density: 0.7,
     restitution: 0.15,
     friction: 0.5,
     fractureThreshold: 50,
-    color: 0x8b5e3c, // brown
+    color: 0x8b5e3c,
   },
 };
 
@@ -44,6 +45,30 @@ export interface BlockUserData {
   block: Block;
 }
 
+/** Map block dimensions to the correct sprite frame name. */
+function pickBlockFrame(material: BlockMaterial, width: number, height: number, cracked: boolean): string {
+  const suffix = cracked ? "_cracked" : "";
+
+  if (material === "cheese_crate") {
+    // Small (~0.6m) vs large (~0.8m)
+    const size = Math.max(width, height) <= 0.65 ? "small" : "large";
+    return `cheese_crate_${size}${suffix}`;
+  }
+
+  // Wood: categorize by longer dimension
+  const longer = Math.max(width, height);
+  if (longer >= 2.0) {
+    return `wood_platform${suffix}`;
+  }
+  if (longer >= 0.9) {
+    return `wood_plank_long${suffix}`;
+  }
+  if (longer >= 0.5) {
+    return `wood_plank_medium${suffix}`;
+  }
+  return `wood_plank_short${suffix}`;
+}
+
 export class Block extends Entity {
   readonly material: BlockMaterial;
   readonly materialDef: MaterialDef;
@@ -51,15 +76,18 @@ export class Block extends Entity {
   readonly heightM: number;
   cumulativeImpulse = 0;
   destroyed = false;
+  private cracked = false;
+  private readonly sprite: Sprite;
 
   private constructor(
     body: Body,
-    display: Graphics,
+    sprite: Sprite,
     material: BlockMaterial,
     widthM: number,
     heightM: number,
   ) {
-    super(body, display);
+    super(body, sprite);
+    this.sprite = sprite;
     this.material = material;
     this.materialDef = MATERIALS[material];
     this.widthM = widthM;
@@ -84,14 +112,18 @@ export class Block extends Entity {
     const wPx = engine.metersToPixels(def.width);
     const hPx = engine.metersToPixels(def.height);
 
-    const gfx = new Graphics();
-    gfx.rect(-wPx / 2, -hPx / 2, wPx, hPx);
-    gfx.fill({ color: mat.color });
-    gfx.stroke({ color: 0x000000, width: 1, alpha: 0.3 });
+    // Get sprite frame from atlas
+    const frameName = pickBlockFrame(def.material, def.width, def.height, false);
+    const texture = getFrame(frameName);
 
-    engine.getLayer("structures").addChild(gfx);
+    const sprite = new Sprite(texture);
+    sprite.anchor.set(0.5);
+    sprite.width = wPx;
+    sprite.height = hPx;
 
-    const block = new Block(body, gfx, def.material, def.width, def.height);
+    engine.getLayer("structures").addChild(sprite);
+
+    const block = new Block(body, sprite, def.material, def.width, def.height);
     body.setUserData({ type: "block", block } satisfies BlockUserData);
     engine.addEntity(block);
 
@@ -101,6 +133,17 @@ export class Block extends Entity {
   applyImpulse(impulse: number): boolean {
     if (this.destroyed) return false;
     this.cumulativeImpulse += impulse;
+
+    // Show cracked sprite when past 60% of fracture threshold
+    if (!this.cracked && this.cumulativeImpulse >= this.materialDef.fractureThreshold * 0.6) {
+      this.cracked = true;
+      const crackedFrame = pickBlockFrame(this.material, this.widthM, this.heightM, true);
+      const crackedTex = getFrame(crackedFrame);
+      if (crackedTex !== Texture.EMPTY) {
+        this.sprite.texture = crackedTex;
+      }
+    }
+
     return this.cumulativeImpulse >= this.materialDef.fractureThreshold;
   }
 }

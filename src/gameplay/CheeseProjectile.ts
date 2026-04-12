@@ -1,14 +1,15 @@
-import { Graphics } from "pixi.js";
+import { Sprite, Texture } from "pixi.js";
 import { Circle, Vec2 } from "planck";
 import { Entity } from "../engine/entities/Entity.js";
 import type { Engine } from "../engine/Engine.js";
 import type { CheeseConfig, ShotLifecycleConfig } from "./SlingshotConfig.js";
+import { getFrame } from "../engine/AssetLoader.js";
 
 export type CheeseState = "loaded" | "aiming" | "launched" | "settled" | "removed";
 
 /**
- * Cheddar cheese projectile — a circle physics body that can be launched
- * from the slingshot. Tracks its own lifecycle state.
+ * Cheddar cheese projectile — uses sprite-based rendering with
+ * state-driven texture swaps matching the character sheet poses.
  */
 export class CheeseProjectile extends Entity {
   private _state: CheeseState = "loaded";
@@ -16,8 +17,8 @@ export class CheeseProjectile extends Entity {
   private readonly settledSpeedThreshold: number;
   private readonly settledDuration: number;
   private readonly engine: Engine;
+  private readonly sprite: Sprite;
 
-  /** Fires when this cheese reaches "settled" or "removed" state */
   onResolved: (() => void) | null = null;
 
   get state(): CheeseState {
@@ -36,31 +37,36 @@ export class CheeseProjectile extends Entity {
       restitution: config.restitution,
       friction: config.friction,
     });
-    // Start inactive until placed on slingshot
     body.setActive(false);
 
     const radiusPx = engine.metersToPixels(config.radius);
-    const gfx = new Graphics();
-    gfx.circle(0, 0, radiusPx);
-    gfx.fill({ color: config.color });
-    // Small wedge detail to make it look like cheese
-    gfx.circle(radiusPx * 0.3, -radiusPx * 0.2, radiusPx * 0.12);
-    gfx.fill({ color: 0xffcc00 });
-    gfx.circle(-radiusPx * 0.2, radiusPx * 0.15, radiusPx * 0.08);
-    gfx.fill({ color: 0xffcc00 });
 
-    engine.getLayer("projectile").addChild(gfx);
+    // Cheese sprite from character atlas
+    const texture = getFrame("cheddar_idle_01");
+    const sprite = new Sprite(texture);
+    sprite.anchor.set(0.5);
+    sprite.width = radiusPx * 2;
+    sprite.height = radiusPx * 2;
 
-    super(body, gfx);
+    engine.getLayer("projectile").addChild(sprite);
+
+    super(body, sprite);
 
     body.setUserData({ type: "cheese" });
 
+    this.sprite = sprite;
     this.engine = engine;
     this.settledSpeedThreshold = lifecycleConfig.settledSpeedThreshold;
     this.settledDuration = lifecycleConfig.settledDuration;
   }
 
-  /** Place cheese at the slingshot anchor, ready for aiming. */
+  private setTexture(frameName: string): void {
+    const tex = getFrame(frameName);
+    if (tex !== Texture.EMPTY) {
+      this.sprite.texture = tex;
+    }
+  }
+
   loadAt(worldX: number, worldY: number): void {
     this._state = "loaded";
     this.body.setPosition(Vec2(worldX, worldY));
@@ -68,25 +74,27 @@ export class CheeseProjectile extends Entity {
     this.body.setAngularVelocity(0);
     this.body.setActive(false);
     this.display.visible = true;
+    this.setTexture("cheddar_loaded");
   }
 
-  /** Transition to aiming state (being dragged). */
   startAiming(): void {
     this._state = "aiming";
+    this.setTexture("cheddar_aiming_01");
   }
 
-  /** Move cheese position during aiming (no physics, direct placement). */
   aimAt(worldX: number, worldY: number): void {
     this.body.setPosition(Vec2(worldX, worldY));
+    // Switch to more nervous face at max pull (could use pull distance later)
+    this.setTexture("cheddar_aiming_02");
   }
 
-  /** Launch the cheese with the given world-space velocity vector. */
   launch(velocityX: number, velocityY: number): void {
     this._state = "launched";
     this.settledTimer = 0;
     this.body.setActive(true);
     this.body.setAwake(true);
     this.body.setLinearVelocity(Vec2(velocityX, velocityY));
+    this.setTexture("cheddar_flying");
   }
 
   override update(dt: number): void {
@@ -96,7 +104,6 @@ export class CheeseProjectile extends Entity {
     const speed = vel.length();
     const pos = this.body.getPosition();
 
-    // Check if cheese left the viewport (with margin)
     const margin = 2;
     const vw = this.engine.viewport.worldWidth;
     const vh = this.engine.viewport.worldHeight;
@@ -105,7 +112,6 @@ export class CheeseProjectile extends Entity {
       return;
     }
 
-    // Check if settled
     if (speed < this.settledSpeedThreshold) {
       this.settledTimer += dt;
       if (this.settledTimer >= this.settledDuration) {
@@ -118,6 +124,7 @@ export class CheeseProjectile extends Entity {
 
   private resolve(): void {
     this._state = "settled";
+    this.setTexture("cheddar_settled");
     this.onResolved?.();
   }
 }

@@ -5,6 +5,7 @@ import { BrieProjectile } from "./BrieProjectile.js";
 import { Slingshot } from "./Slingshot.js";
 import { SlingshotController } from "./SlingshotController.js";
 import type { GameplayConfig } from "./SlingshotConfig.js";
+import { CHEESE_CRUMB_CONFIG } from "../engine/vfx/ParticleEmitter.js";
 
 /** Cheese type identifier matching design doc. */
 export type CheeseType = "cheddar" | "brie";
@@ -66,6 +67,11 @@ export class ShotManager {
     this.controller.onLaunch = () => {
       this.cheeseUsed++;
       this.onCheeseLaunched?.(this.remaining);
+
+      // Cheese crumb particles on launch
+      const anchor = this.slingshot.anchorWorld;
+      const screen = engine.worldToScreenPos(anchor.x, anchor.y);
+      engine.particles.emit(screen.x, screen.y, CHEESE_CRUMB_CONFIG);
     };
 
     // Load first cheese immediately

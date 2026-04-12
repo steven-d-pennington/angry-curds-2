@@ -3,7 +3,11 @@ import { PhysicsWorld } from "./physics/PhysicsWorld.js";
 import { LayerStack, type LayerName } from "./rendering/LayerStack.js";
 import { Viewport } from "./rendering/Viewport.js";
 import { DebugDraw } from "./rendering/DebugDraw.js";
+import { ParallaxBackground } from "./rendering/ParallaxBackground.js";
+import { ParticleEmitter } from "./vfx/ParticleEmitter.js";
 import { Entity } from "./entities/Entity.js";
+import { loadAllAssets } from "./AssetLoader.js";
+import { Vec2 } from "planck";
 import { worldToScreen, metersToPixels } from "./CoordinateSystem.js";
 
 /**
@@ -42,6 +46,8 @@ export class Engine {
   readonly layers: LayerStack;
   readonly viewport: Viewport;
   readonly debugDraw: DebugDraw;
+  readonly parallax: ParallaxBackground;
+  readonly particles: ParticleEmitter;
 
   private readonly entities: Set<Entity> = new Set();
   private accumulator = 0;
@@ -54,12 +60,16 @@ export class Engine {
     layers: LayerStack,
     viewport: Viewport,
     debugDraw: DebugDraw,
+    parallax: ParallaxBackground,
+    particles: ParticleEmitter,
   ) {
     this.app = app;
     this.physics = physics;
     this.layers = layers;
     this.viewport = viewport;
     this.debugDraw = debugDraw;
+    this.parallax = parallax;
+    this.particles = particles;
   }
 
   /**
@@ -77,15 +87,25 @@ export class Engine {
     const app = new Application();
     await app.init({
       resizeTo: window,
-      background: 0x1a1a2e,
+      background: 0x2a1e14, // Deep warm brown per environment spec
       antialias: true,
     });
 
     document.getElementById("app")!.appendChild(app.canvas);
 
+    // Load all sprite sheets and environment textures before building the scene
+    await loadAllAssets();
+
     const physics = new PhysicsWorld(groundY, groundWidth);
     const layers = new LayerStack(app.stage);
     const viewport = new Viewport(viewportWidth, viewportHeight);
+
+    // Parallax background (renders into the background layer)
+    const parallax = new ParallaxBackground(layers.get("background"));
+    parallax.init(app.screen.width, app.screen.height);
+
+    // Particle emitter (renders into VFX layer)
+    const particles = new ParticleEmitter(layers.get("vfx"));
 
     // Debug draw lives above all layers
     const debugContainer = new Container();
@@ -93,7 +113,7 @@ export class Engine {
     app.stage.addChild(debugContainer);
     const debugDraw = new DebugDraw(debugContainer);
 
-    return new Engine(app, physics, layers, viewport, debugDraw);
+    return new Engine(app, physics, layers, viewport, debugDraw, parallax, particles);
   }
 
   /** Register an entity so the engine syncs its transform each frame. */
@@ -165,6 +185,9 @@ export class Engine {
       // Subclasses can override for custom sizing
     }
 
+    // Update particle effects
+    this.particles.update(frameTime);
+
     // Debug draw
     this.debugDraw.draw(this.physics, this.viewport, cw, ch);
   }
@@ -196,5 +219,16 @@ export class Engine {
   /** Convert a size in world meters to pixels at current canvas size. */
   metersToPixels(meters: number): number {
     return metersToPixels(meters, this.app.screen.width, this.viewport.worldWidth);
+  }
+
+  /** Convert a world position to screen coordinates. */
+  worldToScreenPos(worldX: number, worldY: number): { x: number; y: number } {
+    return worldToScreen(
+      Vec2(worldX, worldY),
+      this.app.screen.width,
+      this.app.screen.height,
+      this.viewport.worldWidth,
+      this.viewport.worldHeight,
+    );
   }
 }

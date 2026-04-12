@@ -1,23 +1,20 @@
-import { Graphics } from "pixi.js";
+import { Graphics, Sprite } from "pixi.js";
 import type { Engine } from "../engine/Engine.js";
 import type { SlingshotConfig } from "./SlingshotConfig.js";
+import { getFrame } from "../engine/AssetLoader.js";
 
 /**
- * Visual-only slingshot entity: two upright posts and a rubber band.
- * Does not own a physics body — it's a static visual anchor.
- * The rubber band is drawn dynamically based on the current cheese/drag position.
+ * Visual slingshot: copper Y-fork sprite for the posts + dynamic band.
+ * The band is still drawn with Graphics (it stretches dynamically).
  */
 export class Slingshot {
   private readonly engine: Engine;
   private readonly config: SlingshotConfig;
-  private readonly posts: Graphics;
+  private readonly postSprite: Sprite;
   private readonly band: Graphics;
 
-  /** World-space position of the left fork tip */
   readonly leftForkWorld: { x: number; y: number };
-  /** World-space position of the right fork tip */
   readonly rightForkWorld: { x: number; y: number };
-  /** World-space position of the anchor point (where cheese sits) */
   readonly anchorWorld: { x: number; y: number };
 
   constructor(engine: Engine, config: SlingshotConfig) {
@@ -31,68 +28,26 @@ export class Slingshot {
     this.rightForkWorld = { x: config.positionX + halfSpacing, y: forkY };
     this.anchorWorld = { x: config.positionX, y: forkY - 0.2 };
 
-    // Posts graphics (static, drawn once)
-    this.posts = new Graphics();
-    engine.getLayer("structures").addChild(this.posts);
+    // Slingshot base sprite (copper Y-fork)
+    const texture = getFrame("slingshot_base");
+    this.postSprite = new Sprite(texture);
+    this.postSprite.anchor.set(0.5, 1.0); // Anchor at bottom-center
 
-    // Rubber band graphics (redrawn every frame during aiming)
+    // Position and size the slingshot sprite
+    const baseScreen = this.worldToScreen(config.positionX, config.positionY);
+    const topScreen = this.worldToScreen(config.positionX, forkY + 0.3);
+    this.postSprite.x = baseScreen.x;
+    this.postSprite.y = baseScreen.y;
+    this.postSprite.width = engine.metersToPixels(config.postSpacing + 0.4);
+    this.postSprite.height = baseScreen.y - topScreen.y;
+
+    engine.getLayer("structures").addChild(this.postSprite);
+
+    // Dynamic rubber band (drawn with Graphics)
     this.band = new Graphics();
     engine.getLayer("entities").addChild(this.band);
-
-    this.drawPosts();
   }
 
-  private drawPosts(): void {
-    const cfg = this.config;
-    const ppm = this.engine.canvasWidth / this.engine.viewport.worldWidth;
-    const thickPx = cfg.postThickness * ppm;
-    const halfSpacing = cfg.postSpacing / 2;
-
-    // Left post
-    const lBase = this.worldToScreen(cfg.positionX - halfSpacing, cfg.positionY);
-    const lTop = this.worldToScreen(cfg.positionX - halfSpacing, cfg.positionY + cfg.postHeight);
-
-    // Right post
-    const rBase = this.worldToScreen(cfg.positionX + halfSpacing, cfg.positionY);
-    const rTop = this.worldToScreen(cfg.positionX + halfSpacing, cfg.positionY + cfg.postHeight);
-
-    this.posts.clear();
-    this.posts
-      .moveTo(lBase.x, lBase.y)
-      .lineTo(lTop.x, lTop.y)
-      .stroke({ width: thickPx, color: cfg.postColor, cap: "round" });
-
-    this.posts
-      .moveTo(rBase.x, rBase.y)
-      .lineTo(rTop.x, rTop.y)
-      .stroke({ width: thickPx, color: cfg.postColor, cap: "round" });
-
-    // Small fork tips (slightly angled outward)
-    const forkLen = 0.3;
-    const lForkEnd = this.worldToScreen(
-      cfg.positionX - halfSpacing - 0.1,
-      cfg.positionY + cfg.postHeight + forkLen,
-    );
-    const rForkEnd = this.worldToScreen(
-      cfg.positionX + halfSpacing + 0.1,
-      cfg.positionY + cfg.postHeight + forkLen,
-    );
-
-    this.posts
-      .moveTo(lTop.x, lTop.y)
-      .lineTo(lForkEnd.x, lForkEnd.y)
-      .stroke({ width: thickPx * 0.8, color: cfg.postColor, cap: "round" });
-
-    this.posts
-      .moveTo(rTop.x, rTop.y)
-      .lineTo(rForkEnd.x, rForkEnd.y)
-      .stroke({ width: thickPx * 0.8, color: cfg.postColor, cap: "round" });
-  }
-
-  /**
-   * Draw the rubber band stretched to a world-space position (cheese or drag point).
-   * Called each frame during aiming.
-   */
   drawBand(targetWorldX: number, targetWorldY: number): void {
     const cfg = this.config;
     const left = this.worldToScreen(this.leftForkWorld.x, this.leftForkWorld.y);
@@ -100,20 +55,18 @@ export class Slingshot {
     const target = this.worldToScreen(targetWorldX, targetWorldY);
 
     this.band.clear();
-    // Left fork to target
+    // Leather strap / cheese-wire band (warm brown color)
     this.band
       .moveTo(left.x, left.y)
       .lineTo(target.x, target.y)
-      .stroke({ width: cfg.bandThickness, color: cfg.bandColor, cap: "round" });
+      .stroke({ width: cfg.bandThickness, color: 0x8b5e3c, cap: "round" });
 
-    // Right fork to target
     this.band
       .moveTo(right.x, right.y)
       .lineTo(target.x, target.y)
-      .stroke({ width: cfg.bandThickness, color: cfg.bandColor, cap: "round" });
+      .stroke({ width: cfg.bandThickness, color: 0x8b5e3c, cap: "round" });
   }
 
-  /** Draw the band at rest (between the two fork tips). */
   drawBandIdle(): void {
     const cfg = this.config;
     const left = this.worldToScreen(this.leftForkWorld.x, this.leftForkWorld.y);
@@ -123,10 +76,9 @@ export class Slingshot {
     this.band
       .moveTo(left.x, left.y)
       .lineTo(right.x, right.y)
-      .stroke({ width: cfg.bandThickness, color: cfg.bandColor, cap: "round" });
+      .stroke({ width: cfg.bandThickness, color: 0x8b5e3c, cap: "round" });
   }
 
-  /** Hide the rubber band entirely. */
   clearBand(): void {
     this.band.clear();
   }
@@ -143,7 +95,7 @@ export class Slingshot {
   }
 
   destroy(): void {
-    this.posts.destroy();
+    this.postSprite.destroy();
     this.band.destroy();
   }
 }

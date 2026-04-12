@@ -1,4 +1,5 @@
 import type { BlockMaterial } from "../entities/Block.js";
+import type { CheeseType } from "../gameplay/ShotManager.js";
 
 /** JSON-serializable definition for a single level */
 export interface LevelData {
@@ -18,6 +19,14 @@ export interface LevelData {
 
   /** Number of cheese projectiles available */
   totalCheese: number;
+
+  /**
+   * Ordered deck of cheese types for card-based shot selection.
+   * When present, replaces `totalCheese` as the source of truth for
+   * how many shots are available and what type each shot is.
+   * Falls back to an all-cheddar deck of `totalCheese` length.
+   */
+  deck?: CheeseType[];
 
   /** Score thresholds for star rating (1-star, 2-star, 3-star) */
   starThresholds: [number, number, number];

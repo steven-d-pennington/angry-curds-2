@@ -2,7 +2,8 @@ import type { Engine } from "../engine/Engine.js";
 import { Block, type BlockDef } from "../entities/Block.js";
 import { Rat } from "../entities/Rat.js";
 import type { GameState } from "./GameState.js";
-import { Graphics } from "pixi.js";
+import { TilingSprite } from "pixi.js";
+import { getFrame } from "../engine/AssetLoader.js";
 
 const GROUND_Y = 1; // matches engine ground plane
 
@@ -18,11 +19,8 @@ export function buildLevel(engine: Engine, state: GameState): void {
   // === FORT STRUCTURE ===
   const blocks: BlockDef[] = [
     // --- Ground floor: two pillars with a platform ---
-    // Left pillar (two stacked planks)
     { x: 13, y: 1.75, width: 0.4, height: 1.5, material: "wood" },
-    // Right pillar
     { x: 15.5, y: 1.75, width: 0.4, height: 1.5, material: "wood" },
-    // Floor platform
     { x: 14.25, y: 2.65, width: 3.0, height: 0.3, material: "wood" },
 
     // --- Ground floor fill: cheese crates inside ---
@@ -32,7 +30,6 @@ export function buildLevel(engine: Engine, state: GameState): void {
     // --- Second floor: narrower, taller pillars ---
     { x: 13.4, y: 3.45, width: 0.35, height: 1.3, material: "wood" },
     { x: 15.1, y: 3.45, width: 0.35, height: 1.3, material: "wood" },
-    // Second floor platform
     { x: 14.25, y: 4.25, width: 2.2, height: 0.3, material: "cheese_crate" },
 
     // --- Second floor fill ---
@@ -41,7 +38,6 @@ export function buildLevel(engine: Engine, state: GameState): void {
     // --- Third floor: precarious tower ---
     { x: 14.0, y: 4.95, width: 0.3, height: 1.1, material: "wood" },
     { x: 14.5, y: 4.95, width: 0.3, height: 1.1, material: "wood" },
-    // Top cap
     { x: 14.25, y: 5.65, width: 1.0, height: 0.25, material: "cheese_crate" },
 
     // --- Side tower (extra challenge, right side) ---
@@ -57,13 +53,9 @@ export function buildLevel(engine: Engine, state: GameState): void {
 
   // === RATS ===
   const ratPositions: Array<{ x: number; y: number }> = [
-    // Rat 1: sitting on ground floor between pillars (protected)
     { x: 14.3, y: 1.7 },
-    // Rat 2: sitting on second floor platform
     { x: 14.25, y: 4.7 },
-    // Rat 3: on top of the precarious tower (exposed!)
     { x: 14.25, y: 6.1 },
-    // Rat 4: on top of the side tower
     { x: 16.9, y: 3.8 },
   ];
 
@@ -78,13 +70,26 @@ function drawGround(engine: Engine): void {
   const ch = engine.canvasHeight;
   const groundScreenY = ch - (GROUND_Y / engine.viewport.worldHeight) * ch;
 
-  const ground = new Graphics();
-  // Green grass layer
-  ground.rect(0, groundScreenY, cw, ch - groundScreenY);
-  ground.fill({ color: 0x4a7c3f });
-  // Brown dirt line
-  ground.rect(0, groundScreenY, cw, 3);
-  ground.fill({ color: 0x5c3a1e });
+  // Use ground sprites from props atlas
+  const surfaceTex = getFrame("ground_surface");
+  const dirtTex = getFrame("ground_dirt");
 
-  engine.getLayer("background").addChild(ground);
+  // Tileable ground surface (moss/grass strip)
+  const surfaceHeight = engine.metersToPixels(0.15);
+  const surface = new TilingSprite({
+    texture: surfaceTex,
+    width: cw,
+    height: surfaceHeight,
+  });
+  surface.y = groundScreenY - surfaceHeight * 0.5;
+  engine.getLayer("background").addChild(surface);
+
+  // Tileable dirt/flagstone below
+  const dirt = new TilingSprite({
+    texture: dirtTex,
+    width: cw,
+    height: ch - groundScreenY + surfaceHeight,
+  });
+  dirt.y = groundScreenY + surfaceHeight * 0.5;
+  engine.getLayer("background").addChild(dirt);
 }

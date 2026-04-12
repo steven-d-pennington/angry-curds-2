@@ -5,6 +5,13 @@ import type { Rat, RatUserData } from "../entities/Rat.js";
 import type { Engine } from "../engine/Engine.js";
 import type { GameState } from "./GameState.js";
 import { audioManager } from "../audio/AudioManager.js";
+import {
+  CHEESE_CRUMB_CONFIG,
+  DUST_PUFF_CONFIG,
+  IMPACT_SPARK_CONFIG,
+  WOOD_SPLINTER_CONFIG,
+  HIT_STAR_CONFIG,
+} from "../engine/vfx/ParticleEmitter.js";
 
 import type { BrieProjectile } from "./BrieProjectile.js";
 
@@ -48,10 +55,19 @@ export function setupContactHandler(engine: Engine, state: GameState): void {
     const udA = getUserData(bodyA);
     const udB = getUserData(bodyB);
 
-    // Cheese impact SFX on significant collision
+    // Cheese impact SFX + VFX on significant collision
     if (maxImpulse > 5) {
       if (udA?.type === "cheese" || udB?.type === "cheese") {
         audioManager.playSfx("cheeseImpact");
+
+        // Spawn impact sparks at contact point
+        const cheeseBody = udA?.type === "cheese" ? bodyA : bodyB;
+        const cPos = cheeseBody.getPosition();
+        const cScreen = engine.worldToScreenPos(cPos.x, cPos.y);
+        engine.particles.emit(cScreen.x, cScreen.y, IMPACT_SPARK_CONFIG);
+        if (maxImpulse > 10) {
+          engine.particles.emit(cScreen.x, cScreen.y, CHEESE_CRUMB_CONFIG);
+        }
       }
     }
 
@@ -127,6 +143,15 @@ function processPending(
     const block = blocks.pop()!;
     if (block.destroyed) continue;
     block.destroyed = true;
+
+    // Spawn VFX at block position
+    const bPos = block.body.getPosition();
+    const bScreen = engine.worldToScreenPos(bPos.x, bPos.y);
+    if (block.material === "wood") {
+      engine.particles.emit(bScreen.x, bScreen.y, WOOD_SPLINTER_CONFIG);
+    }
+    engine.particles.emit(bScreen.x, bScreen.y, DUST_PUFF_CONFIG);
+
     state.onBlockDestroyed(block);
     engine.removeEntity(block);
   }
@@ -135,6 +160,11 @@ function processPending(
     const rat = rats.pop()!;
     if (!rat.alive) continue;
     const pos = rat.body.getPosition();
+
+    // Spawn hit stars around rat
+    const rScreen = engine.worldToScreenPos(pos.x, pos.y);
+    engine.particles.emit(rScreen.x, rScreen.y, HIT_STAR_CONFIG);
+
     state.onRatKilled(rat, pos.x, pos.y);
     rat.kill();
   }

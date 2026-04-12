@@ -5,6 +5,7 @@
   },
   "slingshot": { "x": 3, "y": 1 },
   "totalCheese": 6,
+  "deck": ["cheddar", "brie", "cheddar", "brie", "cheddar", "cheddar"],
   "starThresholds": [2000, 4000, 6000],
   "blocks": [
     { "x": 10.2, "y": 1.5, "width": 0.5, "height": 1.0, "material": "wood" },
