@@ -6,7 +6,8 @@ import { GameState } from "./gameplay/GameState.js";
 import { HUD } from "./gameplay/HUD.js";
 import { ScorePopupManager } from "./gameplay/ScorePopup.js";
 import { setupContactHandler } from "./gameplay/ContactHandler.js";
-import { buildLevel } from "./gameplay/Level.js";
+import { LevelManager } from "./levels/LevelManager.js";
+import { loadLevel } from "./levels/LevelLoader.js";
 import { Vec2 } from "planck";
 import { Container } from "pixi.js";
 
@@ -61,18 +62,23 @@ async function main(): Promise<void> {
     groundWidth: 40,
   });
 
+  // --- Level data ---
+  const levels = new LevelManager();
+  const levelData = levels.current;
+
   // --- Game state & HUD ---
   const config = { ...DEFAULT_CONFIG };
-  const state = new GameState(config.shotLifecycle.totalCheese);
+  const totalCheese = levelData.totalCheese;
+  const state = new GameState(totalCheese);
   const popups = new ScorePopupManager(engine);
-  const hud = new HUD(engine, config.shotLifecycle.totalCheese);
+  const hud = new HUD(engine, totalCheese);
   state.init(engine, popups, hud);
 
   // --- Physics contact handling (block fracture, rat death) ---
   setupContactHandler(engine, state);
 
-  // --- Build the level (structures + rats) ---
-  buildLevel(engine, state);
+  // --- Build the level (structures + rats) from JSON ---
+  loadLevel(levelData, engine, state);
 
   // --- Slingshot & shot management ---
   const shotManager = new ShotManager(engine, config);
