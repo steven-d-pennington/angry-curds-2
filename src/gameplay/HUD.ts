@@ -66,8 +66,9 @@ export class HUD {
     this.scoreText.text = `Score: ${score}`;
   }
 
-  showWin(): void {
-    this.overlayText.text = "LEVEL COMPLETE!";
+  showWin(stars: number = 0): void {
+    const starDisplay = "★".repeat(stars) + "☆".repeat(3 - stars);
+    this.overlayText.text = `LEVEL COMPLETE!\n${starDisplay}`;
     this.overlayText.style.fill = 0x44ff44;
     this.overlayText.visible = true;
   }

@@ -11,12 +11,18 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "typescript": "~6.0.2",
+    "@types/howler": "^2.2.12",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "typescript": "^6.0.2",
     "vite": "^8.0.4",
     "vitest": "^4.1.4"
   },
   "dependencies": {
+    "howler": "^2.2.4",
     "pixi.js": "^8.17.1",
-    "planck": "^1.4.2"
+    "planck": "^1.4.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

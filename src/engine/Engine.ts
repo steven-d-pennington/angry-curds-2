@@ -169,6 +169,20 @@ export class Engine {
     this.debugDraw.draw(this.physics, this.viewport, cw, ch);
   }
 
+  /** Remove and destroy all registered entities. */
+  destroyAllEntities(): void {
+    for (const entity of this.entities) {
+      this.physics.destroyBody(entity.body);
+      entity.destroy();
+    }
+    this.entities.clear();
+  }
+
+  /** Clear all children from every rendering layer. */
+  clearLayers(): void {
+    this.layers.clearAll();
+  }
+
   /** Current canvas width in pixels. */
   get canvasWidth(): number {
     return this.app.screen.width;

@@ -4,6 +4,7 @@ import type { Block, BlockUserData } from "../entities/Block.js";
 import type { Rat, RatUserData } from "../entities/Rat.js";
 import type { Engine } from "../engine/Engine.js";
 import type { GameState } from "./GameState.js";
+import { audioManager } from "../audio/AudioManager.js";
 
 interface CheeseUserData {
   type: "cheese";
@@ -42,6 +43,13 @@ export function setupContactHandler(engine: Engine, state: GameState): void {
     const bodyB = _contact.getFixtureB().getBody();
     const udA = getUserData(bodyA);
     const udB = getUserData(bodyB);
+
+    // Cheese impact SFX on significant collision
+    if (maxImpulse > 5) {
+      if (udA?.type === "cheese" || udB?.type === "cheese") {
+        audioManager.playSfx("cheeseImpact");
+      }
+    }
 
     // Block damage
     if (udA?.type === "block") {

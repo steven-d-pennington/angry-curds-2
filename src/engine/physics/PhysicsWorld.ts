@@ -43,6 +43,18 @@ export class PhysicsWorld {
     return this.groundBody;
   }
 
+  /** Destroy all dynamic and kinematic bodies, keeping only the ground. */
+  destroyAllDynamic(): void {
+    let body = this.world.getBodyList();
+    while (body) {
+      const next = body.getNext();
+      if (body !== this.groundBody) {
+        this.world.destroyBody(body);
+      }
+      body = next;
+    }
+  }
+
   /** Iterate all bodies — used by debug draw and entity sync. */
   forEachBody(callback: (body: Body) => void): void {
     for (let b = this.world.getBodyList(); b; b = b.getNext()) {

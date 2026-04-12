@@ -1,5 +1,5 @@
 import type { Engine } from "../engine/Engine.js";
-import { Block } from "../entities/Block.js";
+import { Block, type BlockDef } from "../entities/Block.js";
 import { Rat } from "../entities/Rat.js";
 import type { GameState } from "../gameplay/GameState.js";
 import type { LevelData } from "./LevelData.js";
@@ -21,17 +21,15 @@ export function loadLevel(
   drawGround(engine);
 
   for (const blockDef of data.blocks) {
-    Block.spawn(
-      {
-        x: blockDef.x,
-        y: blockDef.y,
-        width: blockDef.width,
-        height: blockDef.height,
-        material: blockDef.material,
-        angle: blockDef.angle,
-      },
-      engine,
-    );
+    const def: BlockDef = {
+      x: blockDef.x,
+      y: blockDef.y,
+      width: blockDef.width,
+      height: blockDef.height,
+      material: blockDef.material,
+    };
+    if (blockDef.angle != null) def.angle = blockDef.angle;
+    Block.spawn(def, engine);
   }
 
   for (const ratDef of data.rats) {

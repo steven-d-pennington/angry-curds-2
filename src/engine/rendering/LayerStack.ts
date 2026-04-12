@@ -35,4 +35,11 @@ export class LayerStack {
     if (!layer) throw new Error(`Layer "${name}" not found`);
     return layer;
   }
+
+  /** Remove all children from every layer. */
+  clearAll(): void {
+    for (const layer of this.layers.values()) {
+      layer.removeChildren();
+    }
+  }
 }

@@ -8,6 +8,7 @@ import { ScorePopupManager } from "./gameplay/ScorePopup.js";
 import { setupContactHandler } from "./gameplay/ContactHandler.js";
 import { LevelManager } from "./levels/LevelManager.js";
 import { loadLevel } from "./levels/LevelLoader.js";
+import { audioManager } from "./audio/AudioManager.js";
 import { Vec2 } from "planck";
 import { Container } from "pixi.js";
 
@@ -69,7 +70,8 @@ async function main(): Promise<void> {
   // --- Game state & HUD ---
   const config = { ...DEFAULT_CONFIG };
   const totalCheese = levelData.totalCheese;
-  const state = new GameState(totalCheese);
+  const starThresholds = levelData.starThresholds ?? [1000, 2000, 3000] as const;
+  const state = new GameState(totalCheese, levelData.meta.number, starThresholds);
   const popups = new ScorePopupManager(engine);
   const hud = new HUD(engine, totalCheese);
   state.init(engine, popups, hud);
@@ -79,6 +81,19 @@ async function main(): Promise<void> {
 
   // --- Build the level (structures + rats) from JSON ---
   loadLevel(levelData, engine, state);
+
+  // --- Audio ---
+  audioManager.init();
+
+  // Resume audio context on first user interaction (autoplay policy)
+  const resumeAudio = () => {
+    audioManager.resumeContext();
+    audioManager.playMusic();
+    window.removeEventListener("pointerdown", resumeAudio);
+    window.removeEventListener("keydown", resumeAudio);
+  };
+  window.addEventListener("pointerdown", resumeAudio);
+  window.addEventListener("keydown", resumeAudio);
 
   // --- Slingshot & shot management ---
   const shotManager = new ShotManager(engine, config);
@@ -96,10 +111,13 @@ async function main(): Promise<void> {
   const updater = new GameplayUpdater(engine, shotManager, popups, state);
   engine.addEntity(updater);
 
-  // Toggle debug draw with 'D' key
+  // Toggle debug draw with 'D' key, 'M' to mute
   window.addEventListener("keydown", (e: KeyboardEvent) => {
     if (e.key === "d" || e.key === "D") {
       engine.debugDraw.toggle();
+    }
+    if (e.key === "m" || e.key === "M") {
+      audioManager.toggleMute();
     }
   });
 
