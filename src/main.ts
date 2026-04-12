@@ -8,6 +8,8 @@ import { GameState } from "./gameplay/GameState.js";
 import { HUD } from "./gameplay/HUD.js";
 import { ScorePopupManager } from "./gameplay/ScorePopup.js";
 import { setupContactHandler } from "./gameplay/ContactHandler.js";
+import { CardDeck, DEFAULT_CARD_DECK_CONFIG } from "./gameplay/CardDeck.js";
+import { CardHand } from "./gameplay/CardHand.js";
 import { LevelManager } from "./levels/LevelManager.js";
 import { loadLevel } from "./levels/LevelLoader.js";
 import { audioManager } from "./audio/AudioManager.js";
@@ -16,6 +18,7 @@ import type { LevelInfo } from "./ui/screens/LevelSelectScreen.js";
 import { getBestStars } from "./gameplay/StarRating.js";
 import { Vec2 } from "planck";
 import { Container } from "pixi.js";
+import type { CheeseType } from "./gameplay/ShotManager.js";
 
 // Reset default page styles so the canvas fills the window
 document.documentElement.style.margin = "0";
@@ -70,6 +73,7 @@ class GameSession {
   private shotManager: ShotManager | null = null;
   private updater: GameplayUpdater | null = null;
   private splitHandler: ((e: PointerEvent) => void) | null = null;
+  private cardHand: CardHand | null = null;
 
   constructor(engine: Engine, levels: LevelManager) {
     this.engine = engine;
@@ -80,6 +84,7 @@ class GameSession {
   teardown(): void {
     this.engine.stop();
     this.shotManager?.destroy();
+    this.cardHand?.destroy();
     if (this.updater) {
       this.engine.removeEntity(this.updater);
     }
@@ -93,6 +98,7 @@ class GameSession {
 
     this.shotManager = null;
     this.updater = null;
+    this.cardHand = null;
   }
 
   /** Build and start a level with win/lose callbacks for the React overlay. */
@@ -107,12 +113,18 @@ class GameSession {
       totalCheese: levelData.totalCheese,
     };
 
+    // Build card deck from level data (falls back to all-cheddar)
+    const deckTypes: CheeseType[] = levelData.deck ??
+      Array.from<CheeseType>({ length: levelData.totalCheese }).fill("cheddar");
+    const cardDeck = new CardDeck(deckTypes);
+
     const starThresholds =
       levelData.starThresholds ?? ([1000, 2000, 3000] as const);
     const state = new GameState(
       levelData.totalCheese,
       levelData.meta.number,
       starThresholds,
+      cardDeck,
     );
     const popups = new ScorePopupManager(this.engine);
     const hud = new HUD(this.engine, levelData.totalCheese);
@@ -130,21 +142,34 @@ class GameSession {
     setupContactHandler(this.engine, state);
     loadLevel(levelData, this.engine, state);
 
-    const shotManager = new ShotManager(this.engine, config);
+    const shotManager = new ShotManager(this.engine, config, cardDeck);
     shotManager.onCheeseLaunched = (remaining) => {
       state.onCheeseLaunched();
+      hud.updateCheese(remaining, levelData.totalCheese);
       console.log(`Cheese launched! ${remaining} remaining.`);
     };
     shotManager.onAllCheeseUsed = () => {
       console.log("All cheese used — waiting for physics to settle...");
     };
 
+    // Card hand UI — visual card display at bottom of screen
+    const cardHand = new CardHand(this.engine, cardDeck, DEFAULT_CARD_DECK_CONFIG);
+    this.cardHand = cardHand;
+
+    // When card selection changes mid-hand, reload the slingshot with the new type
+    // (only when not currently aiming or in-flight)
+    cardDeck.onSelectionChanged = (_index, type) => {
+      if (!shotManager.isAiming && shotManager.remaining > 0) {
+        shotManager.reloadCurrent(type);
+      }
+    };
+
     // Tap-to-split: tapping anywhere (outside card area) while a Brie
     // is in flight triggers the split ability
-    const CARD_AREA_HEIGHT = 96; // px from bottom — matches card UI zone
+    const cardAreaHeight = cardHand.areaHeight;
     this.splitHandler = (e: PointerEvent) => {
       // Ignore taps in the card area at the bottom of the screen
-      if (e.clientY > this.engine.canvasHeight - CARD_AREA_HEIGHT) return;
+      if (e.clientY > this.engine.canvasHeight - cardAreaHeight) return;
       const brie = shotManager.activeBrie;
       if (brie && brie.canSplit) {
         brie.activateSplit();

@@ -23,6 +23,10 @@ export class SlingshotController {
 
   /** Fires when a cheese is launched */
   onLaunch: (() => void) | null = null;
+  /** Fires when aiming begins (pointer down on cheese). */
+  onAimStart: (() => void) | null = null;
+  /** Fires when aiming is cancelled (release below min pull). */
+  onAimCancel: (() => void) | null = null;
 
   constructor(
     engine: Engine,
@@ -47,6 +51,11 @@ export class SlingshotController {
     canvas.addEventListener("pointermove", this.onPointerMove);
     canvas.addEventListener("pointerup", this.onPointerUp);
     canvas.addEventListener("pointerleave", this.onPointerUp);
+  }
+
+  /** Whether the slingshot is currently being aimed (dragged). */
+  get isAiming(): boolean {
+    return this.dragging;
   }
 
   /** Set the cheese that's currently loaded on the slingshot. */
@@ -79,6 +88,7 @@ export class SlingshotController {
     this.dragging = true;
     this.activeCheese.startAiming();
     this.dragWorldPos = { x: worldPos.x, y: worldPos.y };
+    this.onAimStart?.();
   }
 
   private onPointerMove(e: PointerEvent): void {
@@ -129,9 +139,10 @@ export class SlingshotController {
 
     // Minimum pull distance to register a shot
     if (dist < 0.2) {
-      // Snap back
+      // Snap back — aiming cancelled
       this.activeCheese.loadAt(anchor.x, anchor.y);
       this.slingshot.drawBand(anchor.x, anchor.y);
+      this.onAimCancel?.();
       return;
     }
 

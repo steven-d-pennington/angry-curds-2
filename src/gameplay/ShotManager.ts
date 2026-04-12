@@ -6,6 +6,7 @@ import { Slingshot } from "./Slingshot.js";
 import { SlingshotController } from "./SlingshotController.js";
 import type { GameplayConfig } from "./SlingshotConfig.js";
 import { CHEESE_CRUMB_CONFIG } from "../engine/vfx/ParticleEmitter.js";
+import type { CardDeck } from "./CardDeck.js";
 
 /** Cheese type identifier matching design doc. */
 export type CheeseType = "cheddar" | "brie";
@@ -16,12 +17,16 @@ export type CheeseType = "cheddar" | "brie";
  *
  * Supports multiple active projectiles (Brie split produces 3 sub-projectiles).
  * A shot resolves only when ALL active projectiles have settled or exited.
+ *
+ * When a CardDeck is provided, cheese type and remaining count are driven
+ * by the deck instead of the flat totalCheese counter.
  */
 export class ShotManager {
   private readonly engine: Engine;
   private readonly config: GameplayConfig;
   private readonly slingshot: Slingshot;
   private readonly controller: SlingshotController;
+  private readonly cardDeck: CardDeck | null;
 
   private cheeseUsed = 0;
   /** The current cheese loaded on the slingshot (cheddar or brie). */
@@ -37,6 +42,7 @@ export class ShotManager {
   onCheeseLaunched: ((remaining: number) => void) | null = null;
 
   get remaining(): number {
+    if (this.cardDeck) return this.cardDeck.remaining;
     return this.config.shotLifecycle.totalCheese - this.cheeseUsed;
   }
 
@@ -52,9 +58,15 @@ export class ShotManager {
     return null;
   }
 
-  constructor(engine: Engine, config: GameplayConfig) {
+  /** Whether the slingshot is currently being aimed (dragged). */
+  get isAiming(): boolean {
+    return this.controller.isAiming;
+  }
+
+  constructor(engine: Engine, config: GameplayConfig, cardDeck?: CardDeck) {
     this.engine = engine;
     this.config = config;
+    this.cardDeck = cardDeck ?? null;
 
     this.slingshot = new Slingshot(engine, config.slingshot);
     this.controller = new SlingshotController(
@@ -64,8 +76,20 @@ export class ShotManager {
       config.trajectoryPreview,
     );
 
+    // Lock card selection when aiming begins, unlock on cancel
+    this.controller.onAimStart = () => {
+      this.cardDeck?.lock();
+    };
+    this.controller.onAimCancel = () => {
+      this.cardDeck?.unlock();
+    };
+
     this.controller.onLaunch = () => {
-      this.cheeseUsed++;
+      if (this.cardDeck) {
+        this.cardDeck.consume();
+      } else {
+        this.cheeseUsed++;
+      }
       this.onCheeseLaunched?.(this.remaining);
 
       // Cheese crumb particles on launch
@@ -139,13 +163,14 @@ export class ShotManager {
   }
 
   /**
-   * Load the next cheese. Accepts an optional type to support
-   * the card-based selection system (defaults to "cheddar").
+   * Load the next cheese. When a CardDeck is active, reads the
+   * currently selected card type. Otherwise accepts an explicit type.
    */
-  loadNextCheese(type: CheeseType = "cheddar"): void {
+  loadNextCheese(type?: CheeseType): void {
+    const cheeseType = type ?? this.cardDeck?.currentType ?? "cheddar";
     const anchor = this.slingshot.anchorWorld;
 
-    if (type === "brie") {
+    if (cheeseType === "brie") {
       const brie = new BrieProjectile(
         this.engine,
         this.config.brie,
@@ -184,6 +209,25 @@ export class ShotManager {
       this.activeProjectiles.add(cheese);
       this.controller.setCheese(cheese);
     }
+  }
+
+  /**
+   * Replace the currently loaded (not launched) cheese with a different type.
+   * Used when the player switches card selection before launching.
+   */
+  reloadCurrent(type: CheeseType): void {
+    // Only reload if a cheese is currently loaded (not launched)
+    if (!this.activePrimary) return;
+    const state = this.activePrimary.state;
+    if (state !== "loaded") return;
+
+    // Remove the current cheese
+    this.engine.removeEntity(this.activePrimary);
+    this.activeProjectiles.delete(this.activePrimary);
+    this.activePrimary = null;
+
+    // Load new type
+    this.loadNextCheese(type);
   }
 
   destroy(): void {

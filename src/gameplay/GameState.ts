@@ -5,6 +5,7 @@ import type { HUD } from "./HUD.js";
 import type { Engine } from "../engine/Engine.js";
 import { calculateStars, saveStarRating } from "./StarRating.js";
 import { audioManager } from "../audio/AudioManager.js";
+import type { CardDeck } from "./CardDeck.js";
 
 const POINTS_RAT_KILLED = 500;
 const POINTS_BLOCK_DESTROYED = 50;
@@ -24,6 +25,7 @@ export class GameState {
   private gameOver = false;
   private readonly levelNumber: number;
   private readonly starThresholds: readonly [number, number, number];
+  private readonly cardDeck: CardDeck | null;
 
   /** Called when the level is won — for UI overlay integration. */
   onGameWin: ((score: number, stars: number) => void) | null = null;
@@ -34,10 +36,12 @@ export class GameState {
     totalCheese: number,
     levelNumber: number,
     starThresholds: readonly [number, number, number],
+    cardDeck?: CardDeck,
   ) {
     this.totalCheese = totalCheese;
     this.levelNumber = levelNumber;
     this.starThresholds = starThresholds;
+    this.cardDeck = cardDeck ?? null;
   }
 
   /** Wire up after all systems are initialized */
@@ -52,6 +56,7 @@ export class GameState {
   }
 
   get cheeseRemaining(): number {
+    if (this.cardDeck) return this.cardDeck.remaining;
     return this.totalCheese - this.cheeseUsed;
   }
 
@@ -64,7 +69,10 @@ export class GameState {
   }
 
   onCheeseLaunched(): void {
-    this.cheeseUsed++;
+    if (!this.cardDeck) {
+      this.cheeseUsed++;
+    }
+    // CardDeck consumption is handled by ShotManager.onLaunch -> cardDeck.consume()
     this.hud?.updateCheese(this.cheeseRemaining, this.totalCheese);
     this.settled = false;
     audioManager.playSfx("cheeseLaunch");
