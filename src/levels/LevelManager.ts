@@ -3,8 +3,14 @@ import type { LevelData } from "./LevelData.js";
 // Static imports for all level JSON files.
 // Add new levels here and they are automatically available via the manager.
 import level1 from "./level1.json";
+import level2 from "./level2.json";
+import level3 from "./level3.json";
 
-const LEVELS: LevelData[] = [level1 as LevelData];
+const LEVELS: LevelData[] = [
+  level1 as LevelData,
+  level2 as LevelData,
+  level3 as LevelData,
+];
 
 /**
  * Manages the ordered list of levels and tracks progression.
