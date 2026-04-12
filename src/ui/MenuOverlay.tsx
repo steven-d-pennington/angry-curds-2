@@ -10,6 +10,8 @@ import "./menu.css";
 export interface MenuCallbacks {
   /** Start a level by 0-based index */
   startLevel: (levelIndex: number) => void;
+  /** Retry the current level */
+  retryLevel: () => void;
   /** Get level info for the select screen */
   getLevels: () => LevelInfo[];
   /** Whether there's a next level after the current one */
@@ -89,13 +91,10 @@ export function MenuOverlay({ callbacks, onHandle }: MenuOverlayProps): React.JS
     [callbacks],
   );
 
-  const handleRetry = useCallback(
-    (levelIndex: number) => {
-      dispatch({ type: "START_PLAYING" });
-      callbacks.startLevel(levelIndex);
-    },
-    [callbacks],
-  );
+  const handleRetry = useCallback(() => {
+    dispatch({ type: "START_PLAYING" });
+    callbacks.retryLevel();
+  }, [callbacks]);
 
   const handleNextLevel = useCallback(() => {
     dispatch({ type: "START_PLAYING" });
@@ -132,7 +131,7 @@ export function MenuOverlay({ callbacks, onHandle }: MenuOverlayProps): React.JS
           score={state.score}
           stars={state.stars}
           hasNextLevel={callbacks.hasNextLevel()}
-          onRetry={() => handleRetry(getCurrentLevelIndex(callbacks))}
+          onRetry={handleRetry}
           onNextLevel={handleNextLevel}
           onLevelSelect={handleBackToLevels}
         />
@@ -140,23 +139,10 @@ export function MenuOverlay({ callbacks, onHandle }: MenuOverlayProps): React.JS
       {state.screen === "lose" && (
         <LoseScreen
           score={state.score}
-          onRetry={() => handleRetry(getCurrentLevelIndex(callbacks))}
+          onRetry={handleRetry}
           onLevelSelect={handleBackToLevels}
         />
       )}
     </div>
   );
-}
-
-// Helper to get the current level index for retry — the LevelManager tracks this
-function getCurrentLevelIndex(callbacks: MenuCallbacks): number {
-  const levels = callbacks.getLevels();
-  // Find the highest unlocked level that was last played
-  // The game engine will handle this via LevelManager.currentIndex
-  // We just pass 0 as fallback; the actual retry uses callbacks.startLevel
-  // which re-reads from LevelManager
-  for (let i = levels.length - 1; i >= 0; i--) {
-    if (levels[i]!.unlocked) return i;
-  }
-  return 0;
 }

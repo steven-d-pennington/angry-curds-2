@@ -1,3 +1,5 @@
+import React from "react";
+import { createRoot } from "react-dom/client";
 import { Engine } from "./engine/Engine.js";
 import { Entity } from "./engine/entities/Entity.js";
 import { ShotManager } from "./gameplay/ShotManager.js";
@@ -9,6 +11,9 @@ import { setupContactHandler } from "./gameplay/ContactHandler.js";
 import { LevelManager } from "./levels/LevelManager.js";
 import { loadLevel } from "./levels/LevelLoader.js";
 import { audioManager } from "./audio/AudioManager.js";
+import { MenuOverlay, type MenuCallbacks, type MenuOverlayHandle } from "./ui/MenuOverlay.js";
+import type { LevelInfo } from "./ui/screens/LevelSelectScreen.js";
+import { getBestStars } from "./gameplay/StarRating.js";
 import { Vec2 } from "planck";
 import { Container } from "pixi.js";
 
@@ -55,6 +60,95 @@ class GameplayUpdater extends Entity {
   }
 }
 
+/**
+ * Manages a single gameplay session — creating/destroying all gameplay
+ * objects for a level without recreating the engine.
+ */
+class GameSession {
+  private readonly engine: Engine;
+  private readonly levels: LevelManager;
+  private shotManager: ShotManager | null = null;
+  private updater: GameplayUpdater | null = null;
+
+  constructor(engine: Engine, levels: LevelManager) {
+    this.engine = engine;
+    this.levels = levels;
+  }
+
+  /** Tear down the current level, cleaning up all entities and physics. */
+  teardown(): void {
+    this.engine.stop();
+    this.shotManager?.destroy();
+    if (this.updater) {
+      this.engine.removeEntity(this.updater);
+    }
+    this.engine.destroyAllEntities();
+    this.engine.physics.destroyAllDynamic();
+    this.engine.clearLayers();
+
+    this.shotManager = null;
+    this.updater = null;
+  }
+
+  /** Build and start a level with win/lose callbacks for the React overlay. */
+  start(
+    onWin: (score: number, stars: number) => void,
+    onLose: (score: number) => void,
+  ): void {
+    const levelData = this.levels.current;
+    const config = { ...DEFAULT_CONFIG };
+    config.shotLifecycle = {
+      ...config.shotLifecycle,
+      totalCheese: levelData.totalCheese,
+    };
+
+    const starThresholds =
+      levelData.starThresholds ?? ([1000, 2000, 3000] as const);
+    const state = new GameState(
+      levelData.totalCheese,
+      levelData.meta.number,
+      starThresholds,
+    );
+    const popups = new ScorePopupManager(this.engine);
+    const hud = new HUD(this.engine, levelData.totalCheese);
+    state.init(this.engine, popups, hud);
+
+    // Wire win/lose to React overlay (with a short delay so the
+    // PixiJS HUD overlay is visible briefly before the React screen)
+    state.onGameWin = (score, stars) => {
+      setTimeout(() => onWin(score, stars), 1200);
+    };
+    state.onGameLose = (score) => {
+      setTimeout(() => onLose(score), 1200);
+    };
+
+    setupContactHandler(this.engine, state);
+    loadLevel(levelData, this.engine, state);
+
+    const shotManager = new ShotManager(this.engine, config);
+    shotManager.onCheeseLaunched = (remaining) => {
+      state.onCheeseLaunched();
+      console.log(`Cheese launched! ${remaining} remaining.`);
+    };
+    shotManager.onAllCheeseUsed = () => {
+      console.log("All cheese used — waiting for physics to settle...");
+    };
+
+    const updater = new GameplayUpdater(
+      this.engine,
+      shotManager,
+      popups,
+      state,
+    );
+    this.engine.addEntity(updater);
+
+    this.shotManager = shotManager;
+    this.updater = updater;
+
+    this.engine.start();
+  }
+}
+
 async function main(): Promise<void> {
   const engine = await Engine.create({
     viewportWidth: 20,
@@ -63,24 +157,8 @@ async function main(): Promise<void> {
     groundWidth: 40,
   });
 
-  // --- Level data ---
   const levels = new LevelManager();
-  const levelData = levels.current;
-
-  // --- Game state & HUD ---
-  const config = { ...DEFAULT_CONFIG };
-  const totalCheese = levelData.totalCheese;
-  const starThresholds = levelData.starThresholds ?? [1000, 2000, 3000] as const;
-  const state = new GameState(totalCheese, levelData.meta.number, starThresholds);
-  const popups = new ScorePopupManager(engine);
-  const hud = new HUD(engine, totalCheese);
-  state.init(engine, popups, hud);
-
-  // --- Physics contact handling (block fracture, rat death) ---
-  setupContactHandler(engine, state);
-
-  // --- Build the level (structures + rats) from JSON ---
-  loadLevel(levelData, engine, state);
+  const session = new GameSession(engine, levels);
 
   // --- Audio ---
   audioManager.init();
@@ -88,28 +166,11 @@ async function main(): Promise<void> {
   // Resume audio context on first user interaction (autoplay policy)
   const resumeAudio = () => {
     audioManager.resumeContext();
-    audioManager.playMusic();
     window.removeEventListener("pointerdown", resumeAudio);
     window.removeEventListener("keydown", resumeAudio);
   };
   window.addEventListener("pointerdown", resumeAudio);
   window.addEventListener("keydown", resumeAudio);
-
-  // --- Slingshot & shot management ---
-  const shotManager = new ShotManager(engine, config);
-
-  shotManager.onCheeseLaunched = (remaining) => {
-    state.onCheeseLaunched();
-    console.log(`Cheese launched! ${remaining} remaining.`);
-  };
-
-  shotManager.onAllCheeseUsed = () => {
-    console.log("All cheese used — waiting for physics to settle...");
-  };
-
-  // --- Register gameplay updater entity ---
-  const updater = new GameplayUpdater(engine, shotManager, popups, state);
-  engine.addEntity(updater);
 
   // Toggle debug draw with 'D' key, 'M' to mute
   window.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -121,7 +182,65 @@ async function main(): Promise<void> {
     }
   });
 
-  engine.start();
+  // ── React menu overlay ──────────────────────────────────────
+  let menuHandle: MenuOverlayHandle | null = null;
+
+  const startCurrentLevel = () => {
+    session.teardown();
+    session.start(
+      (score, stars) => menuHandle?.showWin(score, stars),
+      (score) => menuHandle?.showLose(score),
+    );
+  };
+
+  const menuCallbacks: MenuCallbacks = {
+    startLevel: (levelIndex: number) => {
+      levels.setLevel(levelIndex);
+      audioManager.playMusic();
+      startCurrentLevel();
+    },
+    retryLevel: () => {
+      audioManager.playMusic();
+      startCurrentLevel();
+    },
+    getLevels: () => {
+      const result: LevelInfo[] = [];
+      const currentIdx = levels.currentIndex;
+      for (let i = 0; i < levels.levelCount; i++) {
+        const data = levels.setLevel(i);
+        // A level is unlocked if it's level 1, or the previous level has stars > 0
+        const unlocked = i === 0 || getBestStars(i) > 0;
+        result.push({
+          number: data.meta.number,
+          unlocked,
+          bestStars: getBestStars(data.meta.number),
+        });
+      }
+      // Restore the current index
+      levels.setLevel(currentIdx);
+      return result;
+    },
+    hasNextLevel: () => levels.hasNext,
+    startNextLevel: () => {
+      const nextData = levels.advance();
+      if (nextData) {
+        audioManager.playMusic();
+        startCurrentLevel();
+      }
+    },
+  };
+
+  // Mount React overlay
+  const overlayDiv = document.getElementById("menu-overlay")!;
+  const root = createRoot(overlayDiv);
+  root.render(
+    React.createElement(MenuOverlay, {
+      callbacks: menuCallbacks,
+      onHandle: (handle: MenuOverlayHandle) => {
+        menuHandle = handle;
+      },
+    }),
+  );
 }
 
 main().catch(console.error);
