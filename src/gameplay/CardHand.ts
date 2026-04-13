@@ -65,9 +65,8 @@ export class CardHand {
     const hand = this.deck.hand;
     if (hand.length === 0) return;
 
-    const { cardWidth, cardHeight, cardGap, selectedOffsetY, bottomMargin } = this.config;
-    const handWidth = hand.length * (cardWidth + cardGap) - cardGap;
-    const startX = (this.engine.canvasWidth - handWidth) / 2;
+    const { cardWidth, cardHeight, cardGap, selectedOffsetY, bottomMargin, leftMargin } = this.config;
+    const startX = leftMargin;
     const baseY = this.engine.canvasHeight - cardHeight - bottomMargin;
     const selectedIdx = this.deck.currentIndex;
 
@@ -147,9 +146,8 @@ export class CardHand {
     const hand = this.deck.hand;
     if (hand.length === 0) return;
 
-    const { cardWidth, cardHeight, cardGap, bottomMargin } = this.config;
-    const handWidth = hand.length * (cardWidth + cardGap) - cardGap;
-    const startX = (this.engine.canvasWidth - handWidth) / 2;
+    const { cardWidth, cardHeight, cardGap, bottomMargin, leftMargin } = this.config;
+    const startX = leftMargin;
     const baseY = this.engine.canvasHeight - cardHeight - bottomMargin;
 
     const px = e.clientX;

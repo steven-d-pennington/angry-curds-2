@@ -12,6 +12,8 @@ export interface CardDeckConfig {
   selectedOffsetY: number;
   /** Bottom margin from screen edge in pixels */
   bottomMargin: number;
+  /** Left margin from screen edge in pixels */
+  leftMargin: number;
   /** Highlight border color for selected card */
   selectedBorderColor: number;
   /** Highlight border width in pixels */
@@ -24,6 +26,7 @@ export const DEFAULT_CARD_DECK_CONFIG: CardDeckConfig = {
   cardGap: 8,
   selectedOffsetY: -20,
   bottomMargin: 16,
+  leftMargin: 16,
   selectedBorderColor: 0xffd700,
   selectedBorderWidth: 3,
 };
