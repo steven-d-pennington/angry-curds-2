@@ -11,8 +11,10 @@ const POINTS_RAT_KILLED = 500;
 const POINTS_BLOCK_DESTROYED = 50;
 const POINTS_UNUSED_CHEESE = 1000;
 
-/** Number of physics frames to suppress block damage after level load. */
-const SETTLING_GRACE_FRAMES = 60;
+/** Number of physics frames to suppress block damage after level load.
+ *  With 0.03m gaps between stacked blocks and gravity at 30 m/s²,
+ *  tall structures (5-6 layers) need ~2-3s to fully settle. */
+const SETTLING_GRACE_FRAMES = 180;
 
 export class GameState {
   score = 0;
