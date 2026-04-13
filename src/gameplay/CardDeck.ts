@@ -8,12 +8,10 @@ export interface CardDeckConfig {
   cardHeight: number;
   /** Gap between cards in pixels */
   cardGap: number;
-  /** Y offset for selected card (negative = raised) */
+  /** Y offset for selected card (positive = lowered, for top-positioned hand) */
   selectedOffsetY: number;
-  /** Bottom margin from screen edge in pixels */
-  bottomMargin: number;
-  /** Left margin from screen edge in pixels */
-  leftMargin: number;
+  /** Top margin from screen edge in pixels */
+  topMargin: number;
   /** Highlight border color for selected card */
   selectedBorderColor: number;
   /** Highlight border width in pixels */
@@ -21,14 +19,13 @@ export interface CardDeckConfig {
 }
 
 export const DEFAULT_CARD_DECK_CONFIG: CardDeckConfig = {
-  cardWidth: 60,
-  cardHeight: 80,
-  cardGap: 8,
-  selectedOffsetY: -20,
-  bottomMargin: 16,
-  leftMargin: 16,
+  cardWidth: 40,
+  cardHeight: 50,
+  cardGap: 6,
+  selectedOffsetY: 6,
+  topMargin: 55,
   selectedBorderColor: 0xffd700,
-  selectedBorderWidth: 3,
+  selectedBorderWidth: 2,
 };
 
 /**

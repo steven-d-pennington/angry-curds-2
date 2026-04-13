@@ -10,10 +10,10 @@ const CHEESE_DISPLAY: Record<CheeseType, { color: number; label: string; icon: n
 };
 
 /**
- * Visual representation of the card hand at the bottom of the screen.
+ * Visual representation of the card hand at the top of the screen.
  *
  * Renders each remaining card as a rectangle with cheese type icon and label.
- * The selected card is raised and highlighted with a gold border.
+ * The selected card is lowered and highlighted with a gold border.
  * Handles pointer input for card selection.
  */
 export class CardHand {
@@ -65,9 +65,10 @@ export class CardHand {
     const hand = this.deck.hand;
     if (hand.length === 0) return;
 
-    const { cardWidth, cardHeight, cardGap, selectedOffsetY, bottomMargin, leftMargin } = this.config;
-    const startX = leftMargin;
-    const baseY = this.engine.canvasHeight - cardHeight - bottomMargin;
+    const { cardWidth, cardHeight, cardGap, selectedOffsetY, topMargin } = this.config;
+    const handWidth = hand.length * (cardWidth + cardGap) - cardGap;
+    const startX = (this.engine.canvasWidth - handWidth) / 2;
+    const baseY = topMargin;
     const selectedIdx = this.deck.currentIndex;
 
     for (let i = 0; i < hand.length; i++) {
@@ -121,11 +122,12 @@ export class CardHand {
     container.addChild(icon);
 
     // Label
+    const fontSize = Math.max(7, Math.round(width * 0.2));
     const label = new Text({
       text: display.label,
       style: {
         fontFamily: "Arial",
-        fontSize: 10,
+        fontSize,
         fontWeight: "bold",
         fill: 0xffffff,
         align: "center",
@@ -146,15 +148,16 @@ export class CardHand {
     const hand = this.deck.hand;
     if (hand.length === 0) return;
 
-    const { cardWidth, cardHeight, cardGap, bottomMargin, leftMargin } = this.config;
-    const startX = leftMargin;
-    const baseY = this.engine.canvasHeight - cardHeight - bottomMargin;
+    const { cardWidth, cardHeight, cardGap, topMargin, selectedOffsetY } = this.config;
+    const handWidth = hand.length * (cardWidth + cardGap) - cardGap;
+    const startX = (this.engine.canvasWidth - handWidth) / 2;
+    const baseY = topMargin;
 
     const px = e.clientX;
     const py = e.clientY;
 
-    // Only process taps in the card area
-    if (py < baseY - 20 || py > this.engine.canvasHeight) return;
+    // Only process taps in the card area at the top of the screen
+    if (py < baseY || py > baseY + cardHeight + selectedOffsetY + 10) return;
 
     for (let i = 0; i < hand.length; i++) {
       const cx = startX + i * (cardWidth + cardGap);
@@ -165,9 +168,9 @@ export class CardHand {
     }
   }
 
-  /** Height of the card area from the bottom of the screen (for tap exclusion). */
+  /** Height of the card area from the top of the screen (for tap exclusion). */
   get areaHeight(): number {
-    return this.config.cardHeight + this.config.bottomMargin - this.config.selectedOffsetY;
+    return this.config.topMargin + this.config.cardHeight + this.config.selectedOffsetY;
   }
 
   destroy(): void {

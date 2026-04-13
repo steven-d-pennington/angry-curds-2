@@ -165,33 +165,16 @@ class GameSession {
       }
     };
 
-    // Card hand UI — fit cards between the slingshot and the structure area
-    const slingshotClearanceX = config.slingshot.positionX + 2.0;
-    const leftPx = this.engine.worldToScreenPos(slingshotClearanceX, 0).x;
-    const nearestBlockX = levelData.blocks.reduce((min, b) => Math.min(min, b.x - b.width / 2), Infinity);
-    const rightPx = this.engine.worldToScreenPos(Math.max(slingshotClearanceX + 1, nearestBlockX - 0.5), 0).x;
-    const availableWidth = rightPx - leftPx;
-    const deckSize = deckTypes.length;
-    const defaultCfg = DEFAULT_CARD_DECK_CONFIG;
-    const maxCardWidth = Math.floor((availableWidth - (deckSize - 1) * defaultCfg.cardGap) / deckSize);
-    const cardWidth = Math.min(defaultCfg.cardWidth, Math.max(30, maxCardWidth));
-    const scale = cardWidth / defaultCfg.cardWidth;
-    const cardDeckConfig = {
-      ...defaultCfg,
-      leftMargin: Math.ceil(leftPx),
-      cardWidth,
-      cardHeight: Math.round(defaultCfg.cardHeight * scale),
-      cardGap: Math.round(defaultCfg.cardGap * scale),
-    };
-    const cardHand = new CardHand(this.engine, cardDeck, cardDeckConfig);
+    // Card hand UI — small cards centered at the top of the screen
+    const cardHand = new CardHand(this.engine, cardDeck, DEFAULT_CARD_DECK_CONFIG);
     this.cardHand = cardHand;
 
     // Tap-to-split: tapping anywhere (outside card area) while a Brie
     // is in flight triggers the split ability
     const cardAreaHeight = cardHand.areaHeight;
     this.splitHandler = (e: PointerEvent) => {
-      // Ignore taps in the card area at the bottom of the screen
-      if (e.clientY > this.engine.canvasHeight - cardAreaHeight) return;
+      // Ignore taps in the card area at the top of the screen
+      if (e.clientY < cardAreaHeight) return;
       const brie = shotManager.activeBrie;
       if (brie && brie.canSplit) {
         brie.activateSplit();
