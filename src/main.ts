@@ -165,11 +165,24 @@ class GameSession {
       }
     };
 
-    // Card hand UI — position cards to the right of the slingshot interaction zone
-    // Slingshot center at positionX with 1.5m interaction radius + visual buffer
+    // Card hand UI — fit cards between the slingshot and the structure area
     const slingshotClearanceX = config.slingshot.positionX + 2.0;
-    const slingshotClearancePixels = this.engine.worldToScreenPos(slingshotClearanceX, 0).x;
-    const cardDeckConfig = { ...DEFAULT_CARD_DECK_CONFIG, leftMargin: Math.ceil(slingshotClearancePixels) };
+    const leftPx = this.engine.worldToScreenPos(slingshotClearanceX, 0).x;
+    const nearestBlockX = levelData.blocks.reduce((min, b) => Math.min(min, b.x - b.width / 2), Infinity);
+    const rightPx = this.engine.worldToScreenPos(Math.max(slingshotClearanceX + 1, nearestBlockX - 0.5), 0).x;
+    const availableWidth = rightPx - leftPx;
+    const deckSize = deckTypes.length;
+    const defaultCfg = DEFAULT_CARD_DECK_CONFIG;
+    const maxCardWidth = Math.floor((availableWidth - (deckSize - 1) * defaultCfg.cardGap) / deckSize);
+    const cardWidth = Math.min(defaultCfg.cardWidth, Math.max(30, maxCardWidth));
+    const scale = cardWidth / defaultCfg.cardWidth;
+    const cardDeckConfig = {
+      ...defaultCfg,
+      leftMargin: Math.ceil(leftPx),
+      cardWidth,
+      cardHeight: Math.round(defaultCfg.cardHeight * scale),
+      cardGap: Math.round(defaultCfg.cardGap * scale),
+    };
     const cardHand = new CardHand(this.engine, cardDeck, cardDeckConfig);
     this.cardHand = cardHand;
 
