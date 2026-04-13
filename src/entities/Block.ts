@@ -19,14 +19,14 @@ export const MATERIALS: Record<BlockMaterial, MaterialDef> = {
     density: 0.5,
     restitution: 0.2,
     friction: 0.6,
-    fractureThreshold: 2,
+    fractureThreshold: 5,
     color: 0xe8c547,
   },
   wood: {
     density: 0.7,
     restitution: 0.15,
     friction: 0.5,
-    fractureThreshold: 4,
+    fractureThreshold: 10,
     color: 0x8b5e3c,
   },
 };

@@ -48,7 +48,7 @@ export function setupContactHandler(engine: Engine, state: GameState): void {
 
   engine.physics.world.on("post-solve", (_contact: Contact, impulse: ContactImpulse) => {
     const maxImpulse = getMaxImpulse(impulse);
-    if (maxImpulse < 0.3) return; // ignore trivial contacts
+    if (maxImpulse < 0.5) return; // ignore trivial contacts
 
     const bodyA = _contact.getFixtureA().getBody();
     const bodyB = _contact.getFixtureB().getBody();
@@ -79,15 +79,17 @@ export function setupContactHandler(engine: Engine, state: GameState): void {
       udB.brie.onFirstContact();
     }
 
-    // Block damage
-    if (udA?.type === "block") {
-      if (udA.block.applyImpulse(maxImpulse)) {
-        pendingBlockDestroys.push(udA.block);
+    // Block damage (suppressed during settling grace period)
+    if (!state.isSettling()) {
+      if (udA?.type === "block") {
+        if (udA.block.applyImpulse(maxImpulse)) {
+          pendingBlockDestroys.push(udA.block);
+        }
       }
-    }
-    if (udB?.type === "block") {
-      if (udB.block.applyImpulse(maxImpulse)) {
-        pendingBlockDestroys.push(udB.block);
+      if (udB?.type === "block") {
+        if (udB.block.applyImpulse(maxImpulse)) {
+          pendingBlockDestroys.push(udB.block);
+        }
       }
     }
 
@@ -105,6 +107,7 @@ export function setupContactHandler(engine: Engine, state: GameState): void {
   const originalStep = engine.physics.step.bind(engine.physics);
   engine.physics.step = (dt: number) => {
     originalStep(dt);
+    state.tickSettling();
     processPending(engine, state, pendingBlockDestroys, pendingRatKills);
   };
 }

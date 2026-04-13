@@ -11,12 +11,17 @@ const POINTS_RAT_KILLED = 500;
 const POINTS_BLOCK_DESTROYED = 50;
 const POINTS_UNUSED_CHEESE = 1000;
 
+/** Number of physics frames to suppress block damage after level load. */
+const SETTLING_GRACE_FRAMES = 60;
+
 export class GameState {
   score = 0;
   totalCheese: number;
   cheeseUsed = 0;
   /** Star rating earned on win (0 before completion). */
   stars = 0;
+  /** Remaining physics frames where block damage is suppressed (settling period). */
+  settlingFramesRemaining = SETTLING_GRACE_FRAMES;
   private readonly rats: Set<Rat> = new Set();
   private popups: ScorePopupManager | null = null;
   private hud: HUD | null = null;
@@ -44,6 +49,18 @@ export class GameState {
     this.levelNumber = levelNumber;
     this.starThresholds = starThresholds;
     this.cardDeck = cardDeck ?? null;
+  }
+
+  /** True while blocks should not accumulate damage (physics settling after load). */
+  isSettling(): boolean {
+    return this.settlingFramesRemaining > 0;
+  }
+
+  /** Call once per physics step to count down the settling grace period. */
+  tickSettling(): void {
+    if (this.settlingFramesRemaining > 0) {
+      this.settlingFramesRemaining--;
+    }
   }
 
   /** Wire up after all systems are initialized */
