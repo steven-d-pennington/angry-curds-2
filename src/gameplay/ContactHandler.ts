@@ -48,7 +48,7 @@ export function setupContactHandler(engine: Engine, state: GameState): void {
 
   engine.physics.world.on("post-solve", (_contact: Contact, impulse: ContactImpulse) => {
     const maxImpulse = getMaxImpulse(impulse);
-    if (maxImpulse < 1) return; // ignore trivial contacts
+    if (maxImpulse < 0.3) return; // ignore trivial contacts
 
     const bodyA = _contact.getFixtureA().getBody();
     const bodyB = _contact.getFixtureB().getBody();
@@ -117,18 +117,18 @@ function checkRatDeath(
 ): void {
   if (udTarget?.type !== "rat" || !udTarget.rat.alive) return;
 
-  // Direct cheese hit threshold: 4
-  if (udOther?.type === "cheese" && impulse > 4) {
+  // Direct cheese hit threshold: 0.5 (any contact kills)
+  if (udOther?.type === "cheese" && impulse > 0.5) {
     pending.push(udTarget.rat);
     return;
   }
-  // Crushed by block threshold: 3
-  if (udOther?.type === "block" && impulse > 3) {
+  // Crushed by block threshold: 0.5 (any falling block kills)
+  if (udOther?.type === "block" && impulse > 0.5) {
     pending.push(udTarget.rat);
     return;
   }
   // Any large hit (e.g. ground slam)
-  if (impulse > 6) {
+  if (impulse > 1.5) {
     pending.push(udTarget.rat);
   }
 }
