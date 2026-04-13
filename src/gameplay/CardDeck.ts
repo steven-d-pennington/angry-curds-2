@@ -134,4 +134,13 @@ export class CardDeck {
     this.onCardConsumed?.(this.cards.length);
     return consumed;
   }
+
+  /** Add more cards to the hand (used by the continue feature). */
+  addCards(types: CheeseType[]): void {
+    this.cards.push(...types);
+    if (this.cards.length > 0 && this.selectedIndex >= this.cards.length) {
+      this.selectedIndex = this.cards.length - 1;
+    }
+    this.onSelectionChanged?.(this.selectedIndex, this.cards[this.selectedIndex]!);
+  }
 }

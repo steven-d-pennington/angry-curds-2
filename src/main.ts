@@ -74,6 +74,8 @@ class GameSession {
   private updater: GameplayUpdater | null = null;
   private splitHandler: ((e: PointerEvent) => void) | null = null;
   private cardHand: CardHand | null = null;
+  private state: GameState | null = null;
+  private cardDeck: CardDeck | null = null;
 
   constructor(engine: Engine, levels: LevelManager) {
     this.engine = engine;
@@ -99,6 +101,8 @@ class GameSession {
     this.shotManager = null;
     this.updater = null;
     this.cardHand = null;
+    this.state = null;
+    this.cardDeck = null;
   }
 
   /** Build and start a level with win/lose callbacks for the React overlay. */
@@ -187,8 +191,21 @@ class GameSession {
 
     this.shotManager = shotManager;
     this.updater = updater;
+    this.state = state;
+    this.cardDeck = cardDeck;
 
     this.engine.start();
+  }
+
+  /** Continue the current level by adding 3 extra cheddar cheese. */
+  continue(): void {
+    if (!this.state || !this.cardDeck || !this.shotManager) return;
+
+    const extraCards: CheeseType[] = ["cheddar", "cheddar", "cheddar"];
+    this.cardDeck.addCards(extraCards);
+    this.state.continueGame(3);
+    this.engine.start();
+    this.shotManager.loadNextCheese();
   }
 }
 
@@ -245,6 +262,10 @@ async function main(): Promise<void> {
     retryLevel: () => {
       audioManager.playMusic();
       startCurrentLevel();
+    },
+    continueLevel: () => {
+      audioManager.playMusic();
+      session.continue();
     },
     getLevels: () => {
       const result: LevelInfo[] = [];

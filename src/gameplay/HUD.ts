@@ -78,4 +78,8 @@ export class HUD {
     this.overlayText.style.fill = 0xff4444;
     this.overlayText.visible = true;
   }
+
+  hideOverlay(): void {
+    this.overlayText.visible = false;
+  }
 }

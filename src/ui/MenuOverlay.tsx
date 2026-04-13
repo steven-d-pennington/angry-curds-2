@@ -12,6 +12,8 @@ export interface MenuCallbacks {
   startLevel: (levelIndex: number) => void;
   /** Retry the current level */
   retryLevel: () => void;
+  /** Continue the current level with 3 extra cheese */
+  continueLevel: () => void;
   /** Get level info for the select screen */
   getLevels: () => LevelInfo[];
   /** Whether there's a next level after the current one */
@@ -108,6 +110,11 @@ export function MenuOverlay({ callbacks, onHandle }: MenuOverlayProps): React.JS
     callbacks.retryLevel();
   }, [callbacks]);
 
+  const handleContinue = useCallback(() => {
+    dispatch({ type: "START_PLAYING" });
+    callbacks.continueLevel();
+  }, [callbacks]);
+
   const handleNextLevel = useCallback(() => {
     dispatch({ type: "START_PLAYING" });
     callbacks.startNextLevel();
@@ -151,6 +158,7 @@ export function MenuOverlay({ callbacks, onHandle }: MenuOverlayProps): React.JS
       {state.screen === "lose" && (
         <LoseScreen
           score={state.score}
+          onContinue={handleContinue}
           onRetry={handleRetry}
           onLevelSelect={handleBackToLevels}
         />

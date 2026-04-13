@@ -31,6 +31,8 @@ export class GameState {
   onGameWin: ((score: number, stars: number) => void) | null = null;
   /** Called when the level is lost — for UI overlay integration. */
   onGameLose: ((score: number) => void) | null = null;
+  /** Called when the player continues after a loss. */
+  onGameContinue: (() => void) | null = null;
 
   constructor(
     totalCheese: number,
@@ -90,6 +92,15 @@ export class GameState {
     this.popups?.spawn(worldX, worldY, POINTS_RAT_KILLED);
     this.hud?.updateScore(this.score);
     audioManager.playSfx("ratDeath");
+  }
+
+  /** Resume the game after a loss, adding more cheese. */
+  continueGame(extraCheese: number): void {
+    this.gameOver = false;
+    this.settled = false;
+    this.totalCheese += extraCheese;
+    this.hud?.hideOverlay();
+    this.hud?.updateCheese(this.cheeseRemaining, this.totalCheese);
   }
 
   /** Called each frame to check win/lose conditions */

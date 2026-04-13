@@ -117,18 +117,18 @@ function checkRatDeath(
 ): void {
   if (udTarget?.type !== "rat" || !udTarget.rat.alive) return;
 
-  // Direct cheese hit threshold: 8
-  if (udOther?.type === "cheese" && impulse > 8) {
+  // Direct cheese hit threshold: 4
+  if (udOther?.type === "cheese" && impulse > 4) {
     pending.push(udTarget.rat);
     return;
   }
-  // Crushed by block threshold: 5
-  if (udOther?.type === "block" && impulse > 5) {
+  // Crushed by block threshold: 3
+  if (udOther?.type === "block" && impulse > 3) {
     pending.push(udTarget.rat);
     return;
   }
   // Any large hit (e.g. ground slam)
-  if (impulse > 10) {
+  if (impulse > 6) {
     pending.push(udTarget.rat);
   }
 }
