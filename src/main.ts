@@ -156,17 +156,18 @@ class GameSession {
       console.log("All cheese used — waiting for physics to settle...");
     };
 
-    // Card hand UI — visual card display at bottom of screen
-    const cardHand = new CardHand(this.engine, cardDeck, DEFAULT_CARD_DECK_CONFIG);
-    this.cardHand = cardHand;
-
     // When card selection changes mid-hand, reload the slingshot with the new type
-    // (only when not currently aiming or in-flight)
+    // (only when not currently aiming or in-flight).
+    // Must be set BEFORE CardHand so CardHand's constructor can chain it with redraw.
     cardDeck.onSelectionChanged = (_index, type) => {
       if (!shotManager.isAiming && shotManager.remaining > 0) {
         shotManager.reloadCurrent(type);
       }
     };
+
+    // Card hand UI — visual card display at bottom of screen
+    const cardHand = new CardHand(this.engine, cardDeck, DEFAULT_CARD_DECK_CONFIG);
+    this.cardHand = cardHand;
 
     // Tap-to-split: tapping anywhere (outside card area) while a Brie
     // is in flight triggers the split ability
