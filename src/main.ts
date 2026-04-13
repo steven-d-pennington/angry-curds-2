@@ -165,8 +165,12 @@ class GameSession {
       }
     };
 
-    // Card hand UI — visual card display at bottom of screen
-    const cardHand = new CardHand(this.engine, cardDeck, DEFAULT_CARD_DECK_CONFIG);
+    // Card hand UI — position cards to the right of the slingshot interaction zone
+    // Slingshot center at positionX with 1.5m interaction radius + visual buffer
+    const slingshotClearanceX = config.slingshot.positionX + 2.0;
+    const slingshotClearancePixels = this.engine.worldToScreenPos(slingshotClearanceX, 0).x;
+    const cardDeckConfig = { ...DEFAULT_CARD_DECK_CONFIG, leftMargin: Math.ceil(slingshotClearancePixels) };
+    const cardHand = new CardHand(this.engine, cardDeck, cardDeckConfig);
     this.cardHand = cardHand;
 
     // Tap-to-split: tapping anywhere (outside card area) while a Brie
