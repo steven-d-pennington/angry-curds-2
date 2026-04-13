@@ -71,6 +71,18 @@ export function MenuOverlay({ callbacks, onHandle }: MenuOverlayProps): React.JS
     stars: 0,
   });
 
+  // Toggle the `active` class on the #menu-overlay host element so
+  // pointer-events switch between none (playing) and auto (menus).
+  useEffect(() => {
+    const el = document.getElementById("menu-overlay");
+    if (!el) return;
+    if (state.screen === "playing") {
+      el.classList.remove("active");
+    } else {
+      el.classList.add("active");
+    }
+  }, [state.screen]);
+
   // Expose imperative handle so game engine can trigger win/lose
   useEffect(() => {
     onHandle({
@@ -115,7 +127,7 @@ export function MenuOverlay({ callbacks, onHandle }: MenuOverlayProps): React.JS
   }
 
   return (
-    <div className="active" style={{ position: "fixed", inset: 0, zIndex: 100 }}>
+    <>
       {state.screen === "title" && (
         <TitleScreen onPlay={handlePlay} />
       )}
@@ -143,6 +155,6 @@ export function MenuOverlay({ callbacks, onHandle }: MenuOverlayProps): React.JS
           onLevelSelect={handleBackToLevels}
         />
       )}
-    </div>
+    </>
   );
 }
