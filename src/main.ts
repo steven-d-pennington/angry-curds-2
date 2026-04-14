@@ -19,6 +19,10 @@ import { getBestStars } from "./gameplay/StarRating.js";
 import { Vec2 } from "planck";
 import { Container } from "pixi.js";
 import type { CheeseType } from "./gameplay/ShotManager.js";
+import { ScreenShake } from "./gameplay/ScreenShake.js";
+import { SlowMotion } from "./gameplay/SlowMotion.js";
+import { CameraController } from "./gameplay/CameraController.js";
+import { DEFAULT_JUICE_CONFIG } from "./gameplay/JuiceConfig.js";
 
 // Reset default page styles so the canvas fills the window
 document.documentElement.style.margin = "0";
@@ -76,6 +80,10 @@ class GameSession {
   private cardHand: CardHand | null = null;
   private state: GameState | null = null;
   private cardDeck: CardDeck | null = null;
+  private screenShake: ScreenShake | null = null;
+  private slowMotion: SlowMotion | null = null;
+  private cameraController: CameraController | null = null;
+  private juiceFrameCallback: ((dt: number) => void) | null = null;
 
   constructor(engine: Engine, levels: LevelManager) {
     this.engine = engine;
@@ -94,6 +102,19 @@ class GameSession {
       this.engine.app.canvas.removeEventListener("pointerdown", this.splitHandler);
       this.splitHandler = null;
     }
+
+    // Clean up juice systems
+    this.screenShake?.reset();
+    this.slowMotion?.destroy();
+    this.cameraController?.reset();
+    if (this.juiceFrameCallback) {
+      this.engine.removeFrameCallback(this.juiceFrameCallback);
+      this.juiceFrameCallback = null;
+    }
+    // Reset stage position (shake/camera may have offset it)
+    this.engine.app.stage.x = 0;
+    this.engine.app.stage.y = 0;
+
     this.engine.destroyAllEntities();
     this.engine.physics.destroyAllDynamic();
     this.engine.clearLayers();
@@ -103,6 +124,9 @@ class GameSession {
     this.cardHand = null;
     this.state = null;
     this.cardDeck = null;
+    this.screenShake = null;
+    this.slowMotion = null;
+    this.cameraController = null;
   }
 
   /** Build and start a level with win/lose callbacks for the React overlay. */
@@ -132,7 +156,26 @@ class GameSession {
     );
     const popups = new ScorePopupManager(this.engine);
     const hud = new HUD(this.engine, levelData.totalCheese);
-    state.init(this.engine, popups, hud);
+
+    // Juice systems
+    const juiceConfig = DEFAULT_JUICE_CONFIG;
+    const screenShake = new ScreenShake(this.engine.app.stage, juiceConfig.screenShake);
+    const slowMotion = new SlowMotion(this.engine, juiceConfig.slowMotion);
+    const cameraController = new CameraController(this.engine, juiceConfig.camera);
+    this.screenShake = screenShake;
+    this.slowMotion = slowMotion;
+    this.cameraController = cameraController;
+
+    state.init(this.engine, popups, hud, slowMotion, screenShake);
+
+    // Frame callback: update juice systems and composite stage offset
+    this.juiceFrameCallback = (realDt: number) => {
+      cameraController.update(realDt);
+      screenShake.update(realDt);
+      // After shake sets stage.x/y, add camera pan offset
+      this.engine.app.stage.x += cameraController.offsetX;
+    };
+    this.engine.addFrameCallback(this.juiceFrameCallback);
 
     // Wire win/lose to React overlay (with a short delay so the
     // PixiJS HUD overlay is visible briefly before the React screen)
@@ -143,13 +186,14 @@ class GameSession {
       setTimeout(() => onLose(score), 1200);
     };
 
-    setupContactHandler(this.engine, state);
+    setupContactHandler(this.engine, state, screenShake);
     loadLevel(levelData, this.engine, state);
 
     const shotManager = new ShotManager(this.engine, config, cardDeck);
     shotManager.onCheeseLaunched = (remaining) => {
       state.onCheeseLaunched();
       hud.updateCheese(remaining, levelData.totalCheese);
+      cameraController.onLaunch();
       console.log(`Cheese launched! ${remaining} remaining.`);
     };
     shotManager.onAllCheeseUsed = () => {

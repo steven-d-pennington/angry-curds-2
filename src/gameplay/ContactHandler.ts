@@ -4,13 +4,18 @@ import type { Block, BlockUserData } from "../entities/Block.js";
 import type { Rat, RatUserData } from "../entities/Rat.js";
 import type { Engine } from "../engine/Engine.js";
 import type { GameState } from "./GameState.js";
+import type { ScreenShake } from "./ScreenShake.js";
 import { audioManager } from "../audio/AudioManager.js";
 import {
   CHEESE_CRUMB_CONFIG,
-  DUST_PUFF_CONFIG,
   IMPACT_SPARK_CONFIG,
   WOOD_SPLINTER_CONFIG,
   HIT_STAR_CONFIG,
+  DESTRUCTION_FLASH_CONFIG,
+  HEAVY_DUST_CONFIG,
+  HEAVY_WOOD_CONFIG,
+  CHEESE_DEBRIS_CONFIG,
+  RAT_KILL_BURST_CONFIG,
 } from "../engine/vfx/ParticleEmitter.js";
 
 import type { BrieProjectile } from "./BrieProjectile.js";
@@ -41,8 +46,10 @@ function getUserData(body: Body): EntityUserData {
  * Registers Planck post-solve listener to handle:
  * - Block fracture (cumulative impulse > threshold)
  * - Rat death (cheese hit > 15, block crush > 10)
+ * - Screen shake on heavy impacts
+ * - Enhanced destruction VFX
  */
-export function setupContactHandler(engine: Engine, state: GameState): void {
+export function setupContactHandler(engine: Engine, state: GameState, screenShake?: ScreenShake): void {
   const pendingBlockDestroys: Block[] = [];
   const pendingRatKills: Rat[] = [];
 
@@ -69,6 +76,9 @@ export function setupContactHandler(engine: Engine, state: GameState): void {
           engine.particles.emit(cScreen.x, cScreen.y, CHEESE_CRUMB_CONFIG);
         }
       }
+
+      // Screen shake on heavy impacts
+      screenShake?.triggerFromImpulse(maxImpulse);
     }
 
     // Brie first-contact lockout: any significant contact locks out the split ability
@@ -147,15 +157,26 @@ function processPending(
     if (block.destroyed) continue;
     block.destroyed = true;
 
-    // Spawn VFX at block position
+    // Spawn enhanced VFX at block position
     const bPos = block.body.getPosition();
     const bScreen = engine.worldToScreenPos(bPos.x, bPos.y);
-    if (block.material === "wood") {
-      engine.particles.emit(bScreen.x, bScreen.y, WOOD_SPLINTER_CONFIG);
-    }
-    engine.particles.emit(bScreen.x, bScreen.y, DUST_PUFF_CONFIG);
 
-    state.onBlockDestroyed(block);
+    // Flash at impact point
+    engine.particles.emit(bScreen.x, bScreen.y, DESTRUCTION_FLASH_CONFIG);
+
+    // Material-specific debris
+    if (block.material === "wood") {
+      engine.particles.emit(bScreen.x, bScreen.y, HEAVY_WOOD_CONFIG);
+      engine.particles.emit(bScreen.x, bScreen.y, WOOD_SPLINTER_CONFIG);
+    } else {
+      // cheese_crate or default
+      engine.particles.emit(bScreen.x, bScreen.y, CHEESE_DEBRIS_CONFIG);
+    }
+
+    // Heavy dust cloud
+    engine.particles.emit(bScreen.x, bScreen.y, HEAVY_DUST_CONFIG);
+
+    state.onBlockDestroyed(block, bPos.x, bPos.y);
     engine.removeEntity(block);
   }
 
@@ -164,9 +185,11 @@ function processPending(
     if (!rat.alive) continue;
     const pos = rat.body.getPosition();
 
-    // Spawn hit stars around rat
+    // Spawn celebratory burst around rat
     const rScreen = engine.worldToScreenPos(pos.x, pos.y);
+    engine.particles.emit(rScreen.x, rScreen.y, RAT_KILL_BURST_CONFIG);
     engine.particles.emit(rScreen.x, rScreen.y, HIT_STAR_CONFIG);
+    engine.particles.emit(rScreen.x, rScreen.y, DESTRUCTION_FLASH_CONFIG);
 
     state.onRatKilled(rat, pos.x, pos.y);
     rat.kill();

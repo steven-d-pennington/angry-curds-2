@@ -54,6 +54,11 @@ export class Engine {
   private lastTime = 0;
   private running = false;
 
+  /** Time scale multiplier (1.0 = normal, 0.25 = quarter speed). */
+  private _timeScale = 1;
+  /** Callbacks invoked each frame with real (unscaled) delta time. */
+  private readonly frameCallbacks: Array<(realDt: number) => void> = [];
+
   private constructor(
     app: Application,
     physics: PhysicsWorld,
@@ -156,7 +161,11 @@ export class Engine {
     // Clamp to avoid spiral of death after alt-tab / breakpoint
     if (frameTime > MAX_FRAME_TIME) frameTime = MAX_FRAME_TIME;
 
-    this.accumulator += frameTime;
+    // Run frame callbacks with real (unscaled) dt — used by juice effects
+    for (const cb of this.frameCallbacks) cb(frameTime);
+
+    // Apply time scale to frame time before accumulating for physics
+    this.accumulator += frameTime * this._timeScale;
 
     // Fixed-timestep physics steps
     while (this.accumulator >= FIXED_DT) {
@@ -230,5 +239,25 @@ export class Engine {
       this.viewport.worldWidth,
       this.viewport.worldHeight,
     );
+  }
+
+  /** Current time scale (1.0 = normal). */
+  get timeScale(): number {
+    return this._timeScale;
+  }
+
+  set timeScale(value: number) {
+    this._timeScale = Math.max(0, value);
+  }
+
+  /** Register a callback that runs each frame with real (unscaled) delta time. */
+  addFrameCallback(cb: (realDt: number) => void): void {
+    this.frameCallbacks.push(cb);
+  }
+
+  /** Remove a previously registered frame callback. */
+  removeFrameCallback(cb: (realDt: number) => void): void {
+    const idx = this.frameCallbacks.indexOf(cb);
+    if (idx >= 0) this.frameCallbacks.splice(idx, 1);
   }
 }

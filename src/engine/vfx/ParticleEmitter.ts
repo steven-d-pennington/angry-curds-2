@@ -196,14 +196,89 @@ export const WOOD_SPLINTER_CONFIG: ParticleConfig = {
 
 export const HIT_STAR_CONFIG: ParticleConfig = {
   frameNames: ["star_01"],
-  count: 3,
-  lifetime: 0.5,
-  speed: [15, 30],
-  angleRange: [-Math.PI * 0.75, -Math.PI * 0.25], // upward arc
+  count: 5,
+  lifetime: 0.6,
+  speed: [20, 50],
+  angleRange: [-Math.PI * 0.85, -Math.PI * 0.15], // wider upward arc
   gravity: -5,
-  scaleStart: 0.8,
+  scaleStart: 1.0,
   scaleEnd: 0.2,
   alphaStart: 1.0,
   alphaEnd: 0.0,
-  rotationSpeed: 2.0,
+  rotationSpeed: 3.0,
+};
+
+/** Bright flash/glow burst at point of destruction. */
+export const DESTRUCTION_FLASH_CONFIG: ParticleConfig = {
+  frameNames: ["dust_puff_01", "dust_puff_02"],
+  count: 3,
+  lifetime: 0.15,
+  speed: [5, 15],
+  angleRange: [0, Math.PI * 2],
+  gravity: 0,
+  scaleStart: 2.0,
+  scaleEnd: 0.1,
+  alphaStart: 0.9,
+  alphaEnd: 0.0,
+  rotationSpeed: 0,
+};
+
+/** Enhanced dust cloud for block destruction — more particles, bigger spread. */
+export const HEAVY_DUST_CONFIG: ParticleConfig = {
+  frameNames: ["dust_puff_01", "dust_puff_02", "dust_puff_03", "dust_puff_04"],
+  count: 8,
+  lifetime: 0.8,
+  speed: [30, 80],
+  angleRange: [-Math.PI, 0],
+  gravity: -8,
+  scaleStart: 0.6,
+  scaleEnd: 2.0,
+  alphaStart: 0.8,
+  alphaEnd: 0.0,
+  rotationSpeed: 1.5,
+};
+
+/** Debris chunks for wood blocks — heavier, more pieces. */
+export const HEAVY_WOOD_CONFIG: ParticleConfig = {
+  frameNames: ["wood_splinter_01", "wood_splinter_02"],
+  count: 8,
+  lifetime: 0.9,
+  speed: [50, 130],
+  angleRange: [-Math.PI * 0.9, -Math.PI * 0.1],
+  gravity: 250,
+  scaleStart: 1.2,
+  scaleEnd: 0.4,
+  alphaStart: 1.0,
+  alphaEnd: 0.1,
+  rotationSpeed: 6.0,
+};
+
+/** Cheese debris for cheese_crate block destruction. */
+export const CHEESE_DEBRIS_CONFIG: ParticleConfig = {
+  frameNames: ["cheese_crumb_01", "cheese_crumb_02", "cheese_crumb_03"],
+  count: 8,
+  lifetime: 0.9,
+  speed: [40, 110],
+  angleRange: [-Math.PI * 0.9, -Math.PI * 0.1],
+  gravity: 220,
+  scaleStart: 1.1,
+  scaleEnd: 0.3,
+  alphaStart: 1.0,
+  alphaEnd: 0.1,
+  rotationSpeed: 5.0,
+};
+
+/** Big burst of stars for rat kill — more celebratory. */
+export const RAT_KILL_BURST_CONFIG: ParticleConfig = {
+  frameNames: ["star_01", "impact_spark_01", "impact_spark_02"],
+  count: 10,
+  lifetime: 0.7,
+  speed: [40, 100],
+  angleRange: [0, Math.PI * 2], // full radial burst
+  gravity: 60,
+  scaleStart: 1.0,
+  scaleEnd: 0.1,
+  alphaStart: 1.0,
+  alphaEnd: 0.0,
+  rotationSpeed: 4.0,
 };

@@ -6,6 +6,8 @@ import type { Engine } from "../engine/Engine.js";
 import { calculateStars, saveStarRating } from "./StarRating.js";
 import { audioManager } from "../audio/AudioManager.js";
 import type { CardDeck } from "./CardDeck.js";
+import type { SlowMotion } from "./SlowMotion.js";
+import type { ScreenShake } from "./ScreenShake.js";
 
 const POINTS_RAT_KILLED = 500;
 const POINTS_BLOCK_DESTROYED = 50;
@@ -28,6 +30,8 @@ export class GameState {
   private popups: ScorePopupManager | null = null;
   private hud: HUD | null = null;
   private engine: Engine | null = null;
+  private slowMotion: SlowMotion | null = null;
+  private screenShake: ScreenShake | null = null;
   private settled = false;
   private gameOver = false;
   private readonly levelNumber: number;
@@ -66,10 +70,12 @@ export class GameState {
   }
 
   /** Wire up after all systems are initialized */
-  init(engine: Engine, popups: ScorePopupManager, hud: HUD): void {
+  init(engine: Engine, popups: ScorePopupManager, hud: HUD, slowMotion?: SlowMotion, screenShake?: ScreenShake): void {
     this.engine = engine;
     this.popups = popups;
     this.hud = hud;
+    this.slowMotion = slowMotion ?? null;
+    this.screenShake = screenShake ?? null;
   }
 
   registerRat(rat: Rat): void {
@@ -99,8 +105,11 @@ export class GameState {
     audioManager.playSfx("cheeseLaunch");
   }
 
-  onBlockDestroyed(_block: Block): void {
+  onBlockDestroyed(_block: Block, worldX?: number, worldY?: number): void {
     this.score += POINTS_BLOCK_DESTROYED;
+    if (worldX !== undefined && worldY !== undefined) {
+      this.popups?.spawn(worldX, worldY, POINTS_BLOCK_DESTROYED);
+    }
     this.hud?.updateScore(this.score);
     audioManager.playSfx("structureBreak");
   }
@@ -111,6 +120,14 @@ export class GameState {
     this.popups?.spawn(worldX, worldY, POINTS_RAT_KILLED);
     this.hud?.updateScore(this.score);
     audioManager.playSfx("ratDeath");
+
+    // Screen shake on every rat kill
+    this.screenShake?.triggerRatKill();
+
+    // Slow-mo on final rat kill for cinematic effect
+    if (this.aliveRats === 0) {
+      this.slowMotion?.trigger();
+    }
   }
 
   /** Resume the game after a loss, adding more cheese. */
