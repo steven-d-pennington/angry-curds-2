@@ -1,11 +1,12 @@
+import { Graphics } from "pixi.js";
 import type { Engine } from "../engine/Engine.js";
 import type { Entity } from "../engine/entities/Entity.js";
 import { CheeseProjectile } from "./CheeseProjectile.js";
 import { BrieProjectile } from "./BrieProjectile.js";
 import { Slingshot } from "./Slingshot.js";
 import { SlingshotController } from "./SlingshotController.js";
-import type { GameplayConfig } from "./SlingshotConfig.js";
-import { CHEESE_CRUMB_CONFIG } from "../engine/vfx/ParticleEmitter.js";
+import type { GameplayConfig, LaunchVfxConfig } from "./SlingshotConfig.js";
+import { CHEESE_CRUMB_CONFIG, LAUNCH_BURST_CONFIG, SPEED_TRAIL_CONFIG } from "../engine/vfx/ParticleEmitter.js";
 import type { CardDeck } from "./CardDeck.js";
 
 /** Cheese type identifier matching design doc. */
@@ -27,6 +28,7 @@ export class ShotManager {
   private readonly slingshot: Slingshot;
   private readonly controller: SlingshotController;
   private readonly cardDeck: CardDeck | null;
+  private readonly launchVfxConfig: LaunchVfxConfig;
 
   private cheeseUsed = 0;
   /** The current cheese loaded on the slingshot (cheddar or brie). */
@@ -35,6 +37,15 @@ export class ShotManager {
   private readonly activeProjectiles: Set<Entity> = new Set();
   private loadTimer = 0;
   private waitingToLoad = false;
+
+  /** Stretch-line VFX state */
+  private stretchLines: Graphics | null = null;
+  private stretchLineTimer = 0;
+
+  /** Speed trail VFX state */
+  private speedTrailTimer = 0;
+  private speedTrailEmitTimer = 0;
+  private speedTrailActive = false;
 
   /** Fires when all cheese are exhausted */
   onAllCheeseUsed: (() => void) | null = null;
@@ -67,8 +78,9 @@ export class ShotManager {
     this.engine = engine;
     this.config = config;
     this.cardDeck = cardDeck ?? null;
+    this.launchVfxConfig = config.launchVfx;
 
-    this.slingshot = new Slingshot(engine, config.slingshot);
+    this.slingshot = new Slingshot(engine, config.slingshot, config.bandPolish);
     this.controller = new SlingshotController(
       engine,
       this.slingshot,
@@ -98,6 +110,23 @@ export class ShotManager {
       engine.particles.emit(screen.x, screen.y, CHEESE_CRUMB_CONFIG);
     };
 
+    // Launch VFX: stretch lines + particle burst + speed trail
+    this.controller.onLaunchVfx = (pullRatio, _velX, _velY) => {
+      const anchor = this.slingshot.anchorWorld;
+      const screen = engine.worldToScreenPos(anchor.x, anchor.y);
+
+      // Particle burst at release point
+      engine.particles.emit(screen.x, screen.y, LAUNCH_BURST_CONFIG);
+
+      // Stretch lines radiating from fork
+      this.spawnStretchLines(screen.x, screen.y, pullRatio);
+
+      // Start speed trail behind the launched cheese
+      this.speedTrailActive = true;
+      this.speedTrailTimer = 0;
+      this.speedTrailEmitTimer = 0;
+    };
+
     // Load first cheese immediately
     this.loadNextCheese();
   }
@@ -106,6 +135,12 @@ export class ShotManager {
    * Must be called each frame to manage cheese lifecycle timing.
    */
   update(dt: number): void {
+    // Update stretch line VFX
+    this.updateStretchLines(dt);
+
+    // Update speed trail VFX
+    this.updateSpeedTrail(dt);
+
     // Check if all active projectiles have resolved
     if (this.activeProjectiles.size > 0) {
       for (const entity of this.activeProjectiles) {
@@ -230,9 +265,85 @@ export class ShotManager {
     this.loadNextCheese(type);
   }
 
+  /**
+   * Spawn stretch lines radiating outward from the slingshot fork on launch.
+   * Lines fade out over stretchLineDuration.
+   */
+  private spawnStretchLines(screenX: number, screenY: number, pullRatio: number): void {
+    const cfg = this.launchVfxConfig;
+    const gfx = new Graphics();
+    this.engine.getLayer("vfx").addChild(gfx);
+
+    const lineCount = cfg.stretchLineCount;
+    const lineLen = cfg.stretchLineLength * (0.5 + pullRatio * 0.5);
+
+    for (let i = 0; i < lineCount; i++) {
+      const angle = (i / lineCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+      const endX = screenX + Math.cos(angle) * lineLen;
+      const endY = screenY + Math.sin(angle) * lineLen;
+
+      gfx.moveTo(screenX, screenY)
+        .lineTo(endX, endY)
+        .stroke({ width: 2, color: 0xffe0a0, alpha: 0.8, cap: "round" });
+    }
+
+    this.stretchLines = gfx;
+    this.stretchLineTimer = cfg.stretchLineDuration;
+  }
+
+  /** Fade and remove stretch lines over time. */
+  private updateStretchLines(dt: number): void {
+    if (!this.stretchLines || this.stretchLineTimer <= 0) return;
+
+    this.stretchLineTimer -= dt;
+    if (this.stretchLineTimer <= 0) {
+      this.stretchLines.destroy();
+      this.stretchLines = null;
+    } else {
+      const t = this.stretchLineTimer / this.launchVfxConfig.stretchLineDuration;
+      this.stretchLines.alpha = t;
+    }
+  }
+
+  /**
+   * Emit speed trail particles behind the launched cheese for the first
+   * ~0.5 seconds of flight.
+   */
+  private updateSpeedTrail(dt: number): void {
+    if (!this.speedTrailActive) return;
+
+    this.speedTrailTimer += dt;
+    this.speedTrailEmitTimer += dt;
+
+    if (this.speedTrailTimer >= this.launchVfxConfig.speedTrailDuration) {
+      this.speedTrailActive = false;
+      return;
+    }
+
+    // Emit trail particles at intervals
+    if (this.speedTrailEmitTimer >= this.launchVfxConfig.speedTrailInterval) {
+      this.speedTrailEmitTimer = 0;
+
+      // Get current cheese position
+      if (this.activePrimary) {
+        const body = (this.activePrimary as unknown as { body: { getPosition(): { x: number; y: number } } }).body;
+        if (body) {
+          const pos = body.getPosition();
+          const screen = this.engine.worldToScreenPos(pos.x, pos.y);
+          this.engine.particles.emit(screen.x, screen.y, SPEED_TRAIL_CONFIG);
+        }
+      }
+    }
+  }
+
   destroy(): void {
     this.controller.destroy();
     this.slingshot.destroy();
+    if (this.stretchLines) {
+      this.stretchLines.destroy();
+      this.stretchLines = null;
+    }
+    this.speedTrailActive = false;
     for (const entity of this.activeProjectiles) {
       this.engine.removeEntity(entity);
     }

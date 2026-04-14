@@ -282,3 +282,33 @@ export const RAT_KILL_BURST_CONFIG: ParticleConfig = {
   alphaEnd: 0.0,
   rotationSpeed: 4.0,
 };
+
+/** Satisfying burst at slingshot release point. */
+export const LAUNCH_BURST_CONFIG: ParticleConfig = {
+  frameNames: ["impact_spark_01", "impact_spark_02", "impact_spark_03"],
+  count: 8,
+  lifetime: 0.35,
+  speed: [50, 120],
+  angleRange: [0, Math.PI * 2],
+  gravity: 50,
+  scaleStart: 0.8,
+  scaleEnd: 0.1,
+  alphaStart: 0.9,
+  alphaEnd: 0.0,
+  rotationSpeed: 6.0,
+};
+
+/** Speed trail particles emitted behind launched cheese during flight. */
+export const SPEED_TRAIL_CONFIG: ParticleConfig = {
+  frameNames: ["dust_puff_01", "dust_puff_02"],
+  count: 2,
+  lifetime: 0.2,
+  speed: [5, 15],
+  angleRange: [0, Math.PI * 2],
+  gravity: 0,
+  scaleStart: 0.4,
+  scaleEnd: 0.1,
+  alphaStart: 0.5,
+  alphaEnd: 0.0,
+  rotationSpeed: 0,
+};

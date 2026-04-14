@@ -68,6 +68,36 @@ export interface TrajectoryPreviewConfig {
   dotAlpha: number;
 }
 
+export interface BandPolishConfig {
+  /** Band thickness at minimum pull (relaxed) */
+  thicknessMin: number;
+  /** Band thickness at maximum pull (fully stretched) */
+  thicknessMax: number;
+  /** Band color when relaxed (brown) */
+  colorRelaxed: number;
+  /** Band color when fully stretched (red-orange) */
+  colorStretched: number;
+  /** Maximum sag in pixels when relaxed (gravity droop) */
+  sagMax: number;
+  /** Number of line segments for tapered band rendering */
+  taperSegments: number;
+  /** Width ratio at the target/cheese end relative to fork end (0-1) */
+  taperEndRatio: number;
+}
+
+export interface LaunchVfxConfig {
+  /** Number of stretch lines radiating from fork on launch */
+  stretchLineCount: number;
+  /** Length of stretch lines in pixels */
+  stretchLineLength: number;
+  /** Duration of stretch line fade in seconds */
+  stretchLineDuration: number;
+  /** Duration of speed trail behind launched cheese in seconds */
+  speedTrailDuration: number;
+  /** Interval between speed trail particle emissions in seconds */
+  speedTrailInterval: number;
+}
+
 export interface BrieConfig {
   /** Radius of Brie projectile in world meters */
   radius: number;
@@ -114,6 +144,8 @@ export interface GameplayConfig {
   launch: LaunchConfig;
   shotLifecycle: ShotLifecycleConfig;
   trajectoryPreview: TrajectoryPreviewConfig;
+  bandPolish: BandPolishConfig;
+  launchVfx: LaunchVfxConfig;
 }
 
 export const DEFAULT_CONFIG: GameplayConfig = {
@@ -166,10 +198,26 @@ export const DEFAULT_CONFIG: GameplayConfig = {
     nextCheeseDelay: 0.5,
   },
   trajectoryPreview: {
-    dotCount: 30,
-    dotTimeStep: 0.05,
-    dotRadius: 3,
+    dotCount: 7,
+    dotTimeStep: 0.15,
+    dotRadius: 4,
     dotColor: 0xffffff,
-    dotAlpha: 0.4,
+    dotAlpha: 0.5,
+  },
+  bandPolish: {
+    thicknessMin: 2,
+    thicknessMax: 6,
+    colorRelaxed: 0x8b5e3c,
+    colorStretched: 0xff4400,
+    sagMax: 25,
+    taperSegments: 10,
+    taperEndRatio: 0.35,
+  },
+  launchVfx: {
+    stretchLineCount: 6,
+    stretchLineLength: 40,
+    stretchLineDuration: 0.25,
+    speedTrailDuration: 0.5,
+    speedTrailInterval: 0.03,
   },
 };

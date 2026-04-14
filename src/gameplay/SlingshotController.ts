@@ -27,6 +27,8 @@ export class SlingshotController {
   onAimStart: (() => void) | null = null;
   /** Fires when aiming is cancelled (release below min pull). */
   onAimCancel: (() => void) | null = null;
+  /** Fires on launch with the pull ratio (0-1) and launch velocity for VFX. */
+  onLaunchVfx: ((pullRatio: number, velX: number, velY: number) => void) | null = null;
 
   constructor(
     engine: Engine,
@@ -67,6 +69,7 @@ export class SlingshotController {
       this.slingshot.drawBand(
         this.slingshot.anchorWorld.x,
         this.slingshot.anchorWorld.y,
+        0,
       );
     } else {
       this.slingshot.clearBand();
@@ -107,11 +110,14 @@ export class SlingshotController {
     const cheeseY = anchor.y + dy;
     this.dragWorldPos = { x: cheeseX, y: cheeseY };
 
+    // Pull ratio for visual effects (0 = no pull, 1 = max pull)
+    const pullRatio = dist / this.launchConfig.maxPullDistance;
+
     // Move cheese visual
     this.activeCheese.aimAt(cheeseX, cheeseY);
 
-    // Update rubber band
-    this.slingshot.drawBand(cheeseX, cheeseY);
+    // Update rubber band with bezier, dynamic color, and tapering
+    this.slingshot.drawBand(cheeseX, cheeseY, pullRatio);
 
     // Calculate launch velocity (opposite to pull direction)
     const launchVel = computeLaunchVelocity(
@@ -141,10 +147,12 @@ export class SlingshotController {
     if (dist < 0.2) {
       // Snap back — aiming cancelled
       this.activeCheese.loadAt(anchor.x, anchor.y);
-      this.slingshot.drawBand(anchor.x, anchor.y);
+      this.slingshot.drawBand(anchor.x, anchor.y, 0);
       this.onAimCancel?.();
       return;
     }
+
+    const pullRatio = Math.min(dist / this.launchConfig.maxPullDistance, 1);
 
     const launchVel = computeLaunchVelocity(
       dx, dy, dist,
@@ -157,12 +165,13 @@ export class SlingshotController {
     this.activeCheese.launch(launchVel.x, launchVel.y);
 
     this.activeCheese = null;
+    this.onLaunchVfx?.(pullRatio, launchVel.x, launchVel.y);
     this.onLaunch?.();
   }
 
   /**
    * Draw a dotted trajectory arc showing predicted flight path.
-   * Uses simple projectile motion (no collision prediction).
+   * Shows 5-7 dots that fade with distance along the predicted arc.
    */
   private drawTrajectoryPreview(
     startX: number,
