@@ -211,6 +211,9 @@ class GameSession {
 }
 
 async function main(): Promise<void> {
+  // Ensure custom fonts are loaded before rendering any text
+  await document.fonts.ready;
+
   const engine = await Engine.create({
     viewportWidth: 20,
     viewportHeight: 12,
@@ -277,6 +280,7 @@ async function main(): Promise<void> {
         const unlocked = i === 0 || getBestStars(i) > 0;
         result.push({
           number: data.meta.number,
+          name: data.meta.name,
           unlocked,
           bestStars: getBestStars(data.meta.number),
         });

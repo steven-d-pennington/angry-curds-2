@@ -2,6 +2,10 @@ import { Text } from "pixi.js";
 import type { Container } from "pixi.js";
 import type { Engine } from "../engine/Engine.js";
 
+/** Font family used across all HUD text — matches the Google Fonts loaded in index.html. */
+const HUD_FONT_DISPLAY = "Fredoka, Nunito, Arial, sans-serif";
+const HUD_FONT_BODY = "Nunito, Arial, sans-serif";
+
 export class HUD {
   private readonly cheeseText: Text;
   private readonly scoreText: Text;
@@ -14,11 +18,18 @@ export class HUD {
     this.cheeseText = new Text({
       text: `Cheese: ${totalCheese}/${totalCheese}`,
       style: {
-        fontFamily: "Arial",
+        fontFamily: HUD_FONT_BODY,
         fontSize: 28,
         fontWeight: "bold",
         fill: 0xffcc00,
-        stroke: { color: 0x000000, width: 3 },
+        stroke: { color: 0x000000, width: 4 },
+        dropShadow: {
+          color: 0x000000,
+          alpha: 0.5,
+          blur: 4,
+          distance: 2,
+          angle: Math.PI / 4,
+        },
       },
     });
     this.cheeseText.x = 20;
@@ -28,11 +39,18 @@ export class HUD {
     this.scoreText = new Text({
       text: "Score: 0",
       style: {
-        fontFamily: "Arial",
+        fontFamily: HUD_FONT_BODY,
         fontSize: 28,
         fontWeight: "bold",
         fill: 0xffffff,
-        stroke: { color: 0x000000, width: 3 },
+        stroke: { color: 0x000000, width: 4 },
+        dropShadow: {
+          color: 0x000000,
+          alpha: 0.5,
+          blur: 4,
+          distance: 2,
+          angle: Math.PI / 4,
+        },
       },
     });
     this.scoreText.anchor.set(1, 0);
@@ -43,11 +61,18 @@ export class HUD {
     this.overlayText = new Text({
       text: "",
       style: {
-        fontFamily: "Arial",
+        fontFamily: HUD_FONT_DISPLAY,
         fontSize: 64,
         fontWeight: "bold",
         fill: 0xffffff,
-        stroke: { color: 0x000000, width: 5 },
+        stroke: { color: 0x000000, width: 6 },
+        dropShadow: {
+          color: 0x000000,
+          alpha: 0.6,
+          blur: 8,
+          distance: 3,
+          angle: Math.PI / 4,
+        },
         align: "center",
       },
     });
@@ -67,7 +92,7 @@ export class HUD {
   }
 
   showWin(stars: number = 0): void {
-    const starDisplay = "★".repeat(stars) + "☆".repeat(3 - stars);
+    const starDisplay = "\u2B50".repeat(stars) + "\u2606".repeat(3 - stars);
     this.overlayText.text = `LEVEL COMPLETE!\n${starDisplay}`;
     this.overlayText.style.fill = 0x44ff44;
     this.overlayText.visible = true;
@@ -75,7 +100,7 @@ export class HUD {
 
   showLose(): void {
     this.overlayText.text = "TRY AGAIN";
-    this.overlayText.style.fill = 0xff4444;
+    this.overlayText.style.fill = 0xff6666;
     this.overlayText.visible = true;
   }
 

@@ -3,6 +3,8 @@ import React from "react";
 export interface LevelInfo {
   /** 1-based level number */
   number: number;
+  /** Human-readable level name */
+  name: string;
   /** Whether this level is unlocked */
   unlocked: boolean;
   /** Best star rating (0 = not completed, 1-3 = stars earned) */
@@ -15,10 +17,15 @@ interface LevelSelectScreenProps {
   onBack: () => void;
 }
 
-function starDisplay(stars: number): string {
-  const filled = "\u2605"; // ★
-  const empty = "\u2606";  // ☆
-  return filled.repeat(stars) + empty.repeat(3 - stars);
+function StarIcon({ filled }: { filled: boolean }): React.JSX.Element {
+  return (
+    <span
+      className={`level-star ${filled ? "level-star--filled" : "level-star--empty"}`}
+      aria-hidden="true"
+    >
+      {filled ? "\u2605" : "\u2606"}
+    </span>
+  );
 }
 
 export function LevelSelectScreen({
@@ -37,13 +44,20 @@ export function LevelSelectScreen({
             role="listitem"
             disabled={!level.unlocked}
             onClick={() => onSelectLevel(index)}
-            aria-label={`Level ${level.number}${level.unlocked ? `, ${level.bestStars} stars` : ", locked"}`}
+            aria-label={`Level ${level.number}: ${level.name}${level.unlocked ? `, ${level.bestStars} stars` : ", locked"}`}
             autoFocus={index === 0}
           >
             <span className="level-num">{level.number}</span>
-            {level.unlocked && (
-              <span className="level-stars" aria-hidden="true">
-                {starDisplay(level.bestStars)}
+            <span className="level-name">{level.name}</span>
+            {level.unlocked ? (
+              <span className="level-stars">
+                <StarIcon filled={level.bestStars >= 1} />
+                <StarIcon filled={level.bestStars >= 2} />
+                <StarIcon filled={level.bestStars >= 3} />
+              </span>
+            ) : (
+              <span className="level-lock" aria-hidden="true">
+                &#x1F512;
               </span>
             )}
           </button>
