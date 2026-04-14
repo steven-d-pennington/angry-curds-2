@@ -5,11 +5,15 @@ import type { LevelData } from "./LevelData.js";
 import level1 from "./level1.json";
 import level2 from "./level2.json";
 import level3 from "./level3.json";
+import level4 from "./level4.json";
+import level5 from "./level5.json";
 
 const LEVELS: LevelData[] = [
   level1 as LevelData,
   level2 as LevelData,
   level3 as LevelData,
+  level4 as LevelData,
+  level5 as LevelData,
 ];
 
 /**
