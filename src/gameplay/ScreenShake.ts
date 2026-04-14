@@ -53,7 +53,11 @@ export class ScreenShake {
    * Call once per frame with real (unscaled) delta time.
    */
   update(dt: number): void {
-    if (!this.active) return;
+    if (!this.active) {
+      this.stage.x = 0;
+      this.stage.y = 0;
+      return;
+    }
 
     this.elapsed += dt;
     if (this.elapsed >= this.duration) {
