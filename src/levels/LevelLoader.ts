@@ -3,7 +3,9 @@ import { Block, type BlockDef } from "../entities/Block.js";
 import { Rat } from "../entities/Rat.js";
 import type { GameState } from "../gameplay/GameState.js";
 import type { LevelData } from "./LevelData.js";
-import { Graphics } from "pixi.js";
+import { TilingSprite } from "pixi.js";
+import { getFrame } from "../engine/AssetLoader.js";
+import { EnvironmentProps } from "../engine/rendering/EnvironmentProps.js";
 
 const GROUND_Y = 1; // matches engine ground plane
 
@@ -19,6 +21,7 @@ export function loadLevel(
   state: GameState,
 ): void {
   drawGround(engine);
+  placeEnvironmentProps(engine);
 
   for (const blockDef of data.blocks) {
     const def: BlockDef = {
@@ -43,11 +46,37 @@ function drawGround(engine: Engine): void {
   const ch = engine.canvasHeight;
   const groundScreenY = ch - (GROUND_Y / engine.viewport.worldHeight) * ch;
 
-  const ground = new Graphics();
-  ground.rect(0, groundScreenY, cw, ch - groundScreenY);
-  ground.fill({ color: 0x4a7c3f });
-  ground.rect(0, groundScreenY, cw, 3);
-  ground.fill({ color: 0x5c3a1e });
+  const surfaceTexture = getFrame("ground_surface");
+  const dirtTexture = getFrame("ground_dirt");
 
-  engine.getLayer("background").addChild(ground);
+  // Grass surface layer — tiled across viewport width at ground line
+  const surfaceHeight = 48;
+  const surface = new TilingSprite({
+    texture: surfaceTexture,
+    width: cw,
+    height: surfaceHeight,
+  });
+  surface.y = groundScreenY - surfaceHeight * 0.4; // Overlap so grass sits above ground line
+
+  // Dirt layer — fills from below the surface to the bottom of the screen
+  const dirtTop = surface.y + surfaceHeight * 0.6;
+  const dirt = new TilingSprite({
+    texture: dirtTexture,
+    width: cw,
+    height: ch - dirtTop,
+  });
+  dirt.y = dirtTop;
+
+  const bgLayer = engine.getLayer("background");
+  bgLayer.addChild(dirt);
+  bgLayer.addChild(surface);
+}
+
+function placeEnvironmentProps(engine: Engine): void {
+  const cw = engine.canvasWidth;
+  const ch = engine.canvasHeight;
+  const groundScreenY = ch - (GROUND_Y / engine.viewport.worldHeight) * ch;
+
+  const props = new EnvironmentProps(engine.getLayer("background"));
+  props.init(cw, ch, groundScreenY);
 }
