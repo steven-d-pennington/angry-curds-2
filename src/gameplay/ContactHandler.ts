@@ -77,8 +77,6 @@ export function setupContactHandler(engine: Engine, state: GameState, screenShak
         }
       }
 
-      // Screen shake on heavy impacts
-      screenShake?.triggerFromImpulse(maxImpulse);
     }
 
     // Brie first-contact lockout: any significant contact locks out the split ability
@@ -89,8 +87,14 @@ export function setupContactHandler(engine: Engine, state: GameState, screenShak
       udB.brie.onFirstContact();
     }
 
-    // Block damage (suppressed during settling grace period)
+    // All damage/effects suppressed during settling grace period
     if (!state.isSettling()) {
+      // Screen shake on heavy impacts
+      if (maxImpulse > 5) {
+        screenShake?.triggerFromImpulse(maxImpulse);
+      }
+
+      // Block damage
       if (udA?.type === "block") {
         if (udA.block.applyImpulse(maxImpulse)) {
           pendingBlockDestroys.push(udA.block);
@@ -101,11 +105,11 @@ export function setupContactHandler(engine: Engine, state: GameState, screenShak
           pendingBlockDestroys.push(udB.block);
         }
       }
-    }
 
-    // Rat death
-    checkRatDeath(udA, udB, maxImpulse, pendingRatKills);
-    checkRatDeath(udB, udA, maxImpulse, pendingRatKills);
+      // Rat death
+      checkRatDeath(udA, udB, maxImpulse, pendingRatKills);
+      checkRatDeath(udB, udA, maxImpulse, pendingRatKills);
+    }
   });
 
   // Process pending destroys outside the solver callback
