@@ -94,52 +94,84 @@ export class ParallaxBackground {
     this.initDustMotes(canvasWidth, canvasHeight);
   }
 
-  /** Draw angled light shafts to simulate cellar window light. */
+  /** Draw angled light shafts with color variation to simulate cellar window light. */
   private createLightShafts(cw: number, ch: number): void {
     const shafts = new Graphics();
 
-    // Two diagonal light shafts from upper-left (as if from cellar windows)
+    // Diagonal light shafts from upper-left (as if from cellar windows/lanterns)
     const shaftData = [
-      { x: cw * 0.2, w: cw * 0.08, alpha: 0.06 },
-      { x: cw * 0.38, w: cw * 0.12, alpha: 0.04 },
-      { x: cw * 0.7, w: cw * 0.06, alpha: 0.03 },
+      { x: cw * 0.2, w: cw * 0.08, alpha: 0.06, color: 0xffe8b0 },
+      { x: cw * 0.38, w: cw * 0.12, alpha: 0.05, color: 0xffd76e },
+      { x: cw * 0.7, w: cw * 0.06, alpha: 0.03, color: 0xffe0a0 },
+      { x: cw * 0.52, w: cw * 0.04, alpha: 0.025, color: 0xfff0c8 },
     ];
 
     for (const s of shaftData) {
+      // Outer soft edge (wider, more transparent)
+      const edgeW = s.w * 0.3;
+      shafts.moveTo(s.x - edgeW, 0);
+      shafts.lineTo(s.x + s.w + edgeW, 0);
+      shafts.lineTo(s.x + s.w * 1.8 + edgeW * 1.5, ch);
+      shafts.lineTo(s.x + s.w * 0.8 - edgeW * 1.5, ch);
+      shafts.closePath();
+      shafts.fill({ color: s.color, alpha: s.alpha * 0.4 });
+
+      // Core shaft
       shafts.moveTo(s.x, 0);
       shafts.lineTo(s.x + s.w, 0);
       shafts.lineTo(s.x + s.w * 1.8, ch);
       shafts.lineTo(s.x + s.w * 0.8, ch);
       shafts.closePath();
-      shafts.fill({ color: 0xffe8b0, alpha: s.alpha });
+      shafts.fill({ color: s.color, alpha: s.alpha });
     }
 
     this.container.addChild(shafts);
   }
 
-  /** Create floating dust motes that drift through the scene. */
+  /** Create floating dust motes with varied sizes and warm tints. */
   private initDustMotes(cw: number, ch: number): void {
     this.dustContainer = new Container();
     this.dustContainer.label = "dust";
     this.container.addChild(this.dustContainer);
 
-    const count = Math.floor((cw * ch) / 25000); // Scale with screen size
+    // Warm tint palette for dust motes
+    const dustTints = [0xffe8b0, 0xffd76e, 0xfff0c8, 0xf5d0a0, 0xffe0a0];
+
+    const count = Math.floor((cw * ch) / 22000); // Slightly more motes
     for (let i = 0; i < count; i++) {
-      const radius = 1 + Math.random() * 2;
+      // Three size classes: tiny (60%), medium (30%), large (10%)
+      const sizeRoll = Math.random();
+      const radius =
+        sizeRoll < 0.6
+          ? 0.8 + Math.random() * 1.2 // tiny: 0.8-2.0
+          : sizeRoll < 0.9
+            ? 2.0 + Math.random() * 1.5 // medium: 2.0-3.5
+            : 3.0 + Math.random() * 2.0; // large: 3.0-5.0
+
+      const tint =
+        dustTints[Math.floor(Math.random() * dustTints.length)] ?? 0xffe8b0;
+
       const gfx = new Graphics();
       gfx.circle(0, 0, radius);
-      gfx.fill({ color: 0xffe8b0 });
+      gfx.fill({ color: tint });
 
       const mote: DustMote = {
         gfx,
         x: Math.random() * cw,
         y: Math.random() * ch,
         vx: (Math.random() - 0.5) * 0.3,
-        vy: -0.1 - Math.random() * 0.15,
-        alpha: Math.random() * 0.3,
-        alphaDir: (Math.random() > 0.5 ? 1 : -1) * (0.002 + Math.random() * 0.004),
+        vy: -0.08 - Math.random() * 0.12,
+        alpha: Math.random() * 0.25,
+        alphaDir:
+          (Math.random() > 0.5 ? 1 : -1) * (0.001 + Math.random() * 0.004),
         radius,
       };
+
+      // Larger motes drift slower
+      if (radius > 2.5) {
+        mote.vx *= 0.6;
+        mote.vy *= 0.5;
+      }
 
       gfx.x = mote.x;
       gfx.y = mote.y;
