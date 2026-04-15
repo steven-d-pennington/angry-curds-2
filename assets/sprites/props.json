@@ -479,6 +479,206 @@
         "w": 384,
         "h": 48
       }
+    },
+    "wood_plank_short_damaged": {
+      "frame": {
+        "x": 848,
+        "y": 194,
+        "w": 64,
+        "h": 192
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 192
+      }
+    },
+    "wood_plank_medium_damaged": {
+      "frame": {
+        "x": 914,
+        "y": 258,
+        "w": 64,
+        "h": 256
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 256
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 256
+      }
+    },
+    "wood_plank_long_damaged": {
+      "frame": {
+        "x": 782,
+        "y": 386,
+        "w": 64,
+        "h": 384
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 384
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 384
+      }
+    },
+    "wood_platform_damaged": {
+      "frame": {
+        "x": 0,
+        "y": 820,
+        "w": 384,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 384,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 384,
+        "h": 48
+      }
+    },
+    "cheese_crate_small_damaged": {
+      "frame": {
+        "x": 386,
+        "y": 820,
+        "w": 96,
+        "h": 96
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 96,
+        "h": 96
+      },
+      "sourceSize": {
+        "w": 96,
+        "h": 96
+      }
+    },
+    "cheese_crate_large_damaged": {
+      "frame": {
+        "x": 486,
+        "y": 820,
+        "w": 112,
+        "h": 112
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 112,
+        "h": 112
+      },
+      "sourceSize": {
+        "w": 112,
+        "h": 112
+      }
+    },
+    "stone_short_damaged": {
+      "frame": {
+        "x": 848,
+        "y": 386,
+        "w": 64,
+        "h": 192
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 192
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 192
+      }
+    },
+    "stone_medium_damaged": {
+      "frame": {
+        "x": 914,
+        "y": 516,
+        "w": 64,
+        "h": 256
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 256
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 256
+      }
+    },
+    "stone_long_damaged": {
+      "frame": {
+        "x": 716,
+        "y": 386,
+        "w": 64,
+        "h": 384
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 384
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 384
+      }
+    },
+    "stone_platform_damaged": {
+      "frame": {
+        "x": 0,
+        "y": 870,
+        "w": 384,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 384,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 384,
+        "h": 48
+      }
     }
   },
   "meta": {
