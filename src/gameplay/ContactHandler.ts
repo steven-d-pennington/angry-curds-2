@@ -23,11 +23,15 @@ import {
 } from "../engine/vfx/ParticleEmitter.js";
 
 import type { BrieProjectile } from "./BrieProjectile.js";
+import type { GoudaProjectile } from "./GoudaProjectile.js";
+import type { SwissProjectile } from "./SwissProjectile.js";
 
 interface CheeseUserData {
   type: "cheese";
-  cheeseType?: "brie";
+  cheeseType?: "brie" | "gouda" | "swiss";
   brie?: BrieProjectile;
+  gouda?: GoudaProjectile;
+  swiss?: SwissProjectile;
 }
 
 type EntityUserData = BlockUserData | RatUserData | CheeseUserData | null | undefined;
@@ -98,6 +102,23 @@ export function setupContactHandler(engine: Engine, state: GameState, screenShak
       udB.brie.onFirstContact();
     }
 
+    // Gouda first-contact lockout: locks out detonation ability
+    if (udA?.type === "cheese" && udA.cheeseType === "gouda" && udA.gouda) {
+      udA.gouda.onFirstContact();
+    }
+    if (udB?.type === "cheese" && udB.cheeseType === "gouda" && udB.gouda) {
+      udB.gouda.onFirstContact();
+    }
+
+    // Swiss first-contact lockout: locks out pierce ability (only when not already piercing)
+    if (udA?.type === "cheese" && udA.cheeseType === "swiss" && udA.swiss && !udA.swiss.isPiercing) {
+      udA.swiss.onFirstContact();
+    }
+    if (udB?.type === "cheese" && udB.cheeseType === "swiss" && udB.swiss && !udB.swiss.isPiercing) {
+      udB.swiss.onFirstContact();
+    }
+
+
     // All damage/effects suppressed during settling grace period
     if (!state.isSettling()) {
       // Screen shake on heavy impacts
@@ -127,6 +148,33 @@ export function setupContactHandler(engine: Engine, state: GameState, screenShak
       // Rat death
       checkRatDeath(udA, udB, maxImpulse, pendingRatKills);
       checkRatDeath(udB, udA, maxImpulse, pendingRatKills);
+    }
+  });
+
+  // Swiss pierce: sensors trigger begin-contact (not post-solve), so we detect
+  // block overlap here and apply the configured pierce impulse.
+  engine.physics.world.on("begin-contact", (contact: Contact) => {
+    const bodyA = contact.getFixtureA().getBody();
+    const bodyB = contact.getFixtureB().getBody();
+    const udA = getUserData(bodyA);
+    const udB = getUserData(bodyB);
+
+    // Check if one side is a piercing Swiss and the other is a block
+    if (udA?.type === "cheese" && udA.cheeseType === "swiss" && udA.swiss?.isPiercing) {
+      if (udB?.type === "block") {
+        pendingBlockDestroys.push(
+          ...applyPierceDamage(udB.block, udA.swiss),
+        );
+        udA.swiss.onBlockPierced();
+      }
+    }
+    if (udB?.type === "cheese" && udB.cheeseType === "swiss" && udB.swiss?.isPiercing) {
+      if (udA?.type === "block") {
+        pendingBlockDestroys.push(
+          ...applyPierceDamage(udA.block, udB.swiss),
+        );
+        udB.swiss.onBlockPierced();
+      }
     }
   });
 
@@ -164,6 +212,17 @@ function checkRatDeath(
   if (impulse > 1.5) {
     pending.push(udTarget.rat);
   }
+}
+
+/** Apply pierce impulse to a block; returns the block if it fractured. */
+function applyPierceDamage(
+  block: Block,
+  swiss: import("./SwissProjectile.js").SwissProjectile,
+): Block[] {
+  if (block.applyImpulse(swiss.pierceBlockImpulse)) {
+    return [block];
+  }
+  return [];
 }
 
 function processPending(

@@ -135,12 +135,66 @@ export interface BrieSplitConfig {
   speedFactor: number;
 }
 
+export interface GoudaConfig {
+  /** Radius of Gouda projectile in world meters */
+  radius: number;
+  /** Physics density (heavy cheese) */
+  density: number;
+  /** Physics restitution */
+  restitution: number;
+  /** Physics friction */
+  friction: number;
+  /** Fill color (orange-wax rind) */
+  color: number;
+  /** Rind stripe color */
+  rindColor: number;
+}
+
+export interface GoudaExplosionConfig {
+  /** Blast radius in world meters */
+  blastRadius: number;
+  /** Maximum radial impulse applied at epicenter */
+  maxImpulse: number;
+  /** Minimum impulse at the edge of blast radius (linear falloff) */
+  minImpulse: number;
+}
+
+export interface SwissConfig {
+  /** Radius of Swiss projectile in world meters */
+  radius: number;
+  /** Physics density */
+  density: number;
+  /** Physics restitution */
+  restitution: number;
+  /** Physics friction */
+  friction: number;
+  /** Fill color (pale yellow) */
+  color: number;
+  /** Hole color for the Swiss cheese visual */
+  holeColor: number;
+}
+
+export interface SwissPierceConfig {
+  /** Velocity multiplier applied on tap activation */
+  boostFactor: number;
+  /** Velocity retention after piercing through a block (0-1) */
+  postPierceSpeedFactor: number;
+  /** Duration in seconds that contact response is disabled during pierce */
+  pierceDuration: number;
+  /** Impulse applied to the pierced block */
+  pierceBlockImpulse: number;
+}
+
 export interface GameplayConfig {
   slingshot: SlingshotConfig;
   cheese: CheeseConfig;
   brie: BrieConfig;
   brieSub: BrieSubConfig;
   brieSplit: BrieSplitConfig;
+  gouda: GoudaConfig;
+  goudaExplosion: GoudaExplosionConfig;
+  swiss: SwissConfig;
+  swissPierce: SwissPierceConfig;
   launch: LaunchConfig;
   shotLifecycle: ShotLifecycleConfig;
   trajectoryPreview: TrajectoryPreviewConfig;
@@ -185,6 +239,33 @@ export const DEFAULT_CONFIG: GameplayConfig = {
   brieSplit: {
     spreadAngle: (20 * Math.PI) / 180, // 20 degrees
     speedFactor: 0.85,
+  },
+  gouda: {
+    radius: 0.45,
+    density: 3.0,
+    restitution: 0.15,
+    friction: 0.5,
+    color: 0xd4920b,
+    rindColor: 0xc4820a,
+  },
+  goudaExplosion: {
+    blastRadius: 3.0,
+    maxImpulse: 20,
+    minImpulse: 5,
+  },
+  swiss: {
+    radius: 0.35,
+    density: 1.8,
+    restitution: 0.35,
+    friction: 0.3,
+    color: 0xfff4c2,
+    holeColor: 0xf5e6a0,
+  },
+  swissPierce: {
+    boostFactor: 1.8,
+    postPierceSpeedFactor: 0.6,
+    pierceDuration: 0.15,
+    pierceBlockImpulse: 12,
   },
   launch: {
     maxPullDistance: 3.0,

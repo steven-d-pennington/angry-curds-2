@@ -3,6 +3,8 @@ import type { Engine } from "../engine/Engine.js";
 import type { Entity } from "../engine/entities/Entity.js";
 import { CheeseProjectile } from "./CheeseProjectile.js";
 import { BrieProjectile } from "./BrieProjectile.js";
+import { GoudaProjectile } from "./GoudaProjectile.js";
+import { SwissProjectile } from "./SwissProjectile.js";
 import { Slingshot } from "./Slingshot.js";
 import { SlingshotController } from "./SlingshotController.js";
 import type { GameplayConfig, LaunchVfxConfig } from "./SlingshotConfig.js";
@@ -10,7 +12,7 @@ import { CHEESE_CRUMB_CONFIG, LAUNCH_BURST_CONFIG, SPEED_TRAIL_CONFIG } from "..
 import type { CardDeck } from "./CardDeck.js";
 
 /** Cheese type identifier matching design doc. */
-export type CheeseType = "cheddar" | "brie";
+export type CheeseType = "cheddar" | "brie" | "gouda" | "swiss";
 
 /**
  * Manages the sequence of cheese shots: loading, launching, and tracking
@@ -31,8 +33,8 @@ export class ShotManager {
   private readonly launchVfxConfig: LaunchVfxConfig;
 
   private cheeseUsed = 0;
-  /** The current cheese loaded on the slingshot (cheddar or brie). */
-  private activePrimary: CheeseProjectile | BrieProjectile | null = null;
+  /** The current cheese loaded on the slingshot. */
+  private activePrimary: CheeseProjectile | BrieProjectile | GoudaProjectile | SwissProjectile | null = null;
   /** All projectiles that must resolve before the next shot loads. */
   private readonly activeProjectiles: Set<Entity> = new Set();
   private loadTimer = 0;
@@ -64,6 +66,22 @@ export class ShotManager {
   /** The currently launched Brie (if any) — used by tap-to-split handler. */
   get activeBrie(): BrieProjectile | null {
     if (this.activePrimary instanceof BrieProjectile) {
+      return this.activePrimary;
+    }
+    return null;
+  }
+
+  /** The currently launched Gouda (if any) — used by tap-to-detonate handler. */
+  get activeGouda(): GoudaProjectile | null {
+    if (this.activePrimary instanceof GoudaProjectile) {
+      return this.activePrimary;
+    }
+    return null;
+  }
+
+  /** The currently launched Swiss (if any) — used by tap-to-pierce handler. */
+  get activeSwiss(): SwissProjectile | null {
+    if (this.activePrimary instanceof SwissProjectile) {
       return this.activePrimary;
     }
     return null;
@@ -159,6 +177,16 @@ export class ShotManager {
             }
             this.activeProjectiles.delete(entity);
           }
+        } else if (entity instanceof GoudaProjectile) {
+          if (entity.state === "settled" || entity.state === "removed" || entity.state === "detonated") {
+            this.engine.removeEntity(entity);
+            this.activeProjectiles.delete(entity);
+          }
+        } else if (entity instanceof SwissProjectile) {
+          if (entity.state === "settled" || entity.state === "removed") {
+            this.engine.removeEntity(entity);
+            this.activeProjectiles.delete(entity);
+          }
         } else {
           // Sub-projectile: check resolved via custom property
           const sub = entity as Entity & { isResolved?: boolean };
@@ -231,6 +259,32 @@ export class ShotManager {
       this.activePrimary = brie;
       this.activeProjectiles.add(brie);
       this.controller.setCheese(brie);
+    } else if (cheeseType === "gouda") {
+      const gouda = new GoudaProjectile(
+        this.engine,
+        this.config.gouda,
+        this.config.goudaExplosion,
+        this.config.shotLifecycle,
+      );
+      gouda.loadAt(anchor.x, anchor.y);
+
+      this.engine.addEntity(gouda);
+      this.activePrimary = gouda;
+      this.activeProjectiles.add(gouda);
+      this.controller.setCheese(gouda);
+    } else if (cheeseType === "swiss") {
+      const swiss = new SwissProjectile(
+        this.engine,
+        this.config.swiss,
+        this.config.swissPierce,
+        this.config.shotLifecycle,
+      );
+      swiss.loadAt(anchor.x, anchor.y);
+
+      this.engine.addEntity(swiss);
+      this.activePrimary = swiss;
+      this.activeProjectiles.add(swiss);
+      this.controller.setCheese(swiss);
     } else {
       const cheese = new CheeseProjectile(
         this.engine,

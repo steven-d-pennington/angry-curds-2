@@ -7,6 +7,8 @@ import type { CheeseType } from "./ShotManager.js";
 const CHEESE_DISPLAY: Record<CheeseType, { color: number; label: string; icon: number }> = {
   cheddar: { color: 0xffa500, label: "Cheddar", icon: 0xffa500 },
   brie: { color: 0xfff8e7, label: "Brie", icon: 0xe8d5a3 },
+  gouda: { color: 0xd4920b, label: "Gouda", icon: 0xc4820a },
+  swiss: { color: 0xfff4c2, label: "Swiss", icon: 0xf5e6a0 },
 };
 
 /** Animation duration in seconds. */
