@@ -111,8 +111,8 @@ class GameSession {
     this.screenShake?.reset();
     this.slowMotion?.destroy();
     this.cameraController?.reset();
-    this.screenFlash?.reset();
-    this.cameraZoom?.reset();
+    this.screenFlash?.destroy();
+    this.cameraZoom?.destroy();
     if (this.juiceFrameCallback) {
       this.engine.removeFrameCallback(this.juiceFrameCallback);
       this.juiceFrameCallback = null;
@@ -124,9 +124,15 @@ class GameSession {
     this.engine.app.stage.scale.set(1);
     this.engine.app.stage.pivot.set(0);
 
+    // Flush particle emitter memory before clearing layers
+    this.engine.particles.reset();
+
     this.engine.destroyAllEntities();
     this.engine.physics.destroyAllDynamic();
     this.engine.clearLayers();
+
+    // Re-attach the persistent particle emitter to the VFX layer
+    this.engine.particles.reattach(this.engine.getLayer("vfx"));
 
     this.shotManager = null;
     this.updater = null;
@@ -249,6 +255,7 @@ class GameSession {
       // Gouda: tap to detonate (with screen flash + camera zoom)
       const gouda = shotManager.activeGouda;
       if (gouda && gouda.canDetonate) {
+        gouda.onRatKilled = (rat, wx, wy) => state.onRatKilled(rat, wx, wy);
         gouda.activateDetonation();
         screenFlash.trigger(0xffffff, 0.4, 0.1);
         cameraZoom.trigger(

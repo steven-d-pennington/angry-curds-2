@@ -184,6 +184,20 @@ export class ParticleEmitter {
     }
   }
 
+  /** Flush all active and pooled particles, keeping the container alive for reuse. */
+  reset(): void {
+    for (const p of this.particles) p.sprite.destroy();
+    for (const p of this.pool) p.sprite.destroy();
+    this.particles.length = 0;
+    this.pool.length = 0;
+    this.container.removeChildren();
+  }
+
+  /** Re-add this emitter's container to a layer (call after clearLayers). */
+  reattach(parent: Container): void {
+    parent.addChild(this.container);
+  }
+
   destroy(): void {
     for (const p of this.particles) p.sprite.destroy();
     for (const p of this.pool) p.sprite.destroy();
