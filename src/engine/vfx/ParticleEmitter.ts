@@ -298,6 +298,51 @@ export const LAUNCH_BURST_CONFIG: ParticleConfig = {
   rotationSpeed: 6.0,
 };
 
+/** Angular stone chip debris for stone block destruction. */
+export const STONE_CHIP_CONFIG: ParticleConfig = {
+  frameNames: ["stone_chip_01", "stone_chip_02", "stone_chip_03"],
+  count: 6,
+  lifetime: 0.8,
+  speed: [50, 130],
+  angleRange: [-Math.PI * 0.9, -Math.PI * 0.1],
+  gravity: 280,
+  scaleStart: 1.2,
+  scaleEnd: 0.4,
+  alphaStart: 1.0,
+  alphaEnd: 0.2,
+  rotationSpeed: 5.0,
+};
+
+/** Heavy stone debris burst — more pieces, heavier gravity than wood. */
+export const HEAVY_STONE_CONFIG: ParticleConfig = {
+  frameNames: ["stone_chip_01", "stone_chip_02", "stone_chip_03"],
+  count: 10,
+  lifetime: 1.0,
+  speed: [60, 150],
+  angleRange: [-Math.PI * 0.85, -Math.PI * 0.15],
+  gravity: 300,
+  scaleStart: 1.4,
+  scaleEnd: 0.3,
+  alphaStart: 1.0,
+  alphaEnd: 0.1,
+  rotationSpeed: 7.0,
+};
+
+/** Heavy gray-brown dust cloud for stone destruction — denser than wood dust. */
+export const STONE_DUST_CONFIG: ParticleConfig = {
+  frameNames: ["stone_dust_01", "stone_dust_02"],
+  count: 10,
+  lifetime: 1.0,
+  speed: [25, 70],
+  angleRange: [-Math.PI, 0],
+  gravity: -5,
+  scaleStart: 0.7,
+  scaleEnd: 2.5,
+  alphaStart: 0.9,
+  alphaEnd: 0.0,
+  rotationSpeed: 1.0,
+};
+
 /** Speed trail particles emitted behind launched cheese during flight. */
 export const SPEED_TRAIL_CONFIG: ParticleConfig = {
   frameNames: ["dust_puff_01", "dust_puff_02"],

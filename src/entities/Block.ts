@@ -4,7 +4,7 @@ import { Entity } from "../engine/entities/Entity.js";
 import type { Engine } from "../engine/Engine.js";
 import { getFrame } from "../engine/AssetLoader.js";
 
-export type BlockMaterial = "cheese_crate" | "wood";
+export type BlockMaterial = "cheese_crate" | "wood" | "stone";
 
 export interface MaterialDef {
   density: number;
@@ -28,6 +28,13 @@ export const MATERIALS: Record<BlockMaterial, MaterialDef> = {
     friction: 0.5,
     fractureThreshold: 10,
     color: 0x8b5e3c,
+  },
+  stone: {
+    density: 1.2,
+    restitution: 0.1,
+    friction: 0.7,
+    fractureThreshold: 15,
+    color: 0x7a6b58,
   },
 };
 
@@ -53,6 +60,15 @@ function pickBlockFrame(material: BlockMaterial, width: number, height: number, 
     // Small (~0.6m) vs large (~0.8m)
     const size = Math.max(width, height) <= 0.65 ? "small" : "large";
     return `cheese_crate_${size}${suffix}`;
+  }
+
+  // Stone: same size categories as wood
+  if (material === "stone") {
+    const longer = Math.max(width, height);
+    if (longer >= 2.0) return `stone_platform${suffix}`;
+    if (longer >= 0.9) return `stone_long${suffix}`;
+    if (longer >= 0.5) return `stone_medium${suffix}`;
+    return `stone_short${suffix}`;
   }
 
   // Wood: categorize by longer dimension

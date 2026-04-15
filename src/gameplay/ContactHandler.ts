@@ -16,6 +16,9 @@ import {
   HEAVY_WOOD_CONFIG,
   CHEESE_DEBRIS_CONFIG,
   RAT_KILL_BURST_CONFIG,
+  HEAVY_STONE_CONFIG,
+  STONE_CHIP_CONFIG,
+  STONE_DUST_CONFIG,
 } from "../engine/vfx/ParticleEmitter.js";
 
 import type { BrieProjectile } from "./BrieProjectile.js";
@@ -169,16 +172,19 @@ function processPending(
     engine.particles.emit(bScreen.x, bScreen.y, DESTRUCTION_FLASH_CONFIG);
 
     // Material-specific debris
-    if (block.material === "wood") {
+    if (block.material === "stone") {
+      engine.particles.emit(bScreen.x, bScreen.y, HEAVY_STONE_CONFIG);
+      engine.particles.emit(bScreen.x, bScreen.y, STONE_CHIP_CONFIG);
+      engine.particles.emit(bScreen.x, bScreen.y, STONE_DUST_CONFIG);
+    } else if (block.material === "wood") {
       engine.particles.emit(bScreen.x, bScreen.y, HEAVY_WOOD_CONFIG);
       engine.particles.emit(bScreen.x, bScreen.y, WOOD_SPLINTER_CONFIG);
+      engine.particles.emit(bScreen.x, bScreen.y, HEAVY_DUST_CONFIG);
     } else {
       // cheese_crate or default
       engine.particles.emit(bScreen.x, bScreen.y, CHEESE_DEBRIS_CONFIG);
+      engine.particles.emit(bScreen.x, bScreen.y, HEAVY_DUST_CONFIG);
     }
-
-    // Heavy dust cloud
-    engine.particles.emit(bScreen.x, bScreen.y, HEAVY_DUST_CONFIG);
 
     state.onBlockDestroyed(block, bPos.x, bPos.y);
     engine.removeEntity(block);
