@@ -1,0 +1,1 @@
+import{i as e}from"./index-Dice56ya.js";export{e as CanvasRenderer};
