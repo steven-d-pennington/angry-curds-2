@@ -130,12 +130,10 @@ export function setupContactHandler(engine: Engine, state: GameState, screenShak
     }
   });
 
-  // Process pending destroys outside the solver callback
-  engine.physics.world.on("end-contact", () => {
-    processPending(engine, state, pendingBlockDestroys, pendingRatKills);
-  });
-
-  // Also process after each step via a pre-solve as a safety net
+  // Deferred destruction: process pending destroys AFTER world.step() completes.
+  // Bodies must never be destroyed during step (contact callbacks, broadphase
+  // iteration) — doing so leaves dangling proxy references that crash in
+  // getFatAABB/testOverlap on the next updateContacts pass.
   const originalStep = engine.physics.step.bind(engine.physics);
   engine.physics.step = (dt: number) => {
     originalStep(dt);
