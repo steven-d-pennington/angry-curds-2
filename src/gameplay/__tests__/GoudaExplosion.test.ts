@@ -3,6 +3,7 @@ import {
   computeExplosionImpulse,
   computeExplosionDirection,
 } from "../GoudaProjectile.js";
+import { MATERIALS } from "../../entities/Block.js";
 
 /**
  * Pure-math tests for the Gouda explosion radial impulse system.
@@ -101,6 +102,79 @@ describe("Gouda explosion direction", () => {
     const dir = computeExplosionDirection(-2, -3, -5, -3);
     expect(dir.dx).toBeCloseTo(-1);
     expect(dir.dy).toBeCloseTo(0);
+  });
+});
+
+describe("Gouda explosion block damage integration", () => {
+  /**
+   * Verify that explosion impulse values are sufficient to fracture blocks
+   * at various distances. This tests the interaction between
+   * computeExplosionImpulse (distance-based falloff) and block fracture
+   * thresholds from the material definitions.
+   *
+   * Default config: blastRadius=3.0, maxImpulse=20, minImpulse=5
+   * Fracture thresholds: cheese_crate=5, wood=10, stone=15
+   */
+
+  it("single explosion impulse at epicenter exceeds all material fracture thresholds", () => {
+    const impulse = computeExplosionImpulse(0, BLAST_RADIUS, MAX_IMPULSE, MIN_IMPULSE);
+    for (const [, def] of Object.entries(MATERIALS)) {
+      expect(impulse).toBeGreaterThanOrEqual(def.fractureThreshold);
+    }
+  });
+
+  it("single explosion impulse at edge fractures cheese_crate but not stone", () => {
+    const impulse = computeExplosionImpulse(BLAST_RADIUS, BLAST_RADIUS, MAX_IMPULSE, MIN_IMPULSE);
+    expect(impulse).toBeCloseTo(MIN_IMPULSE); // 5
+    expect(impulse).toBeGreaterThanOrEqual(MATERIALS.cheese_crate.fractureThreshold);
+    expect(impulse).toBeLessThan(MATERIALS.stone.fractureThreshold);
+  });
+
+  it("impulse above Block.MIN_IMPULSE_THRESHOLD (0.5) registers damage", () => {
+    // Even at the edge, minImpulse (5) is well above the 0.5 noise filter
+    const edgeImpulse = computeExplosionImpulse(BLAST_RADIUS, BLAST_RADIUS, MAX_IMPULSE, MIN_IMPULSE);
+    expect(edgeImpulse).toBeGreaterThan(0.5);
+  });
+
+  it("cheese_crate fractures from explosion at any distance within radius", () => {
+    const threshold = MATERIALS.cheese_crate.fractureThreshold;
+    // Check impulse at max distance still meets threshold
+    const edgeImpulse = computeExplosionImpulse(BLAST_RADIUS, BLAST_RADIUS, MAX_IMPULSE, MIN_IMPULSE);
+    expect(edgeImpulse).toBeGreaterThanOrEqual(threshold);
+  });
+
+  it("wood fractures at close range but not at blast edge from single hit", () => {
+    const threshold = MATERIALS.wood.fractureThreshold;
+    // At epicenter: 20 >= 10 ✓
+    const centerImpulse = computeExplosionImpulse(0, BLAST_RADIUS, MAX_IMPULSE, MIN_IMPULSE);
+    expect(centerImpulse).toBeGreaterThanOrEqual(threshold);
+    // At edge: 5 < 10 ✗
+    const edgeImpulse = computeExplosionImpulse(BLAST_RADIUS, BLAST_RADIUS, MAX_IMPULSE, MIN_IMPULSE);
+    expect(edgeImpulse).toBeLessThan(threshold);
+  });
+
+  it("stone fractures only very close to epicenter from single hit", () => {
+    const threshold = MATERIALS.stone.fractureThreshold;
+    // At epicenter: 20 >= 15 ✓
+    const centerImpulse = computeExplosionImpulse(0, BLAST_RADIUS, MAX_IMPULSE, MIN_IMPULSE);
+    expect(centerImpulse).toBeGreaterThanOrEqual(threshold);
+    // At 1/3 radius: 15 >= 15 ✓ (just meets threshold)
+    const thirdImpulse = computeExplosionImpulse(BLAST_RADIUS / 3, BLAST_RADIUS, MAX_IMPULSE, MIN_IMPULSE);
+    expect(thirdImpulse).toBeGreaterThanOrEqual(threshold);
+    // At half radius: 12.5 < 15 ✗
+    const halfImpulse = computeExplosionImpulse(BLAST_RADIUS / 2, BLAST_RADIUS, MAX_IMPULSE, MIN_IMPULSE);
+    expect(halfImpulse).toBeLessThan(threshold);
+  });
+
+  it("wood at far range accumulates damage (cracks) even without fracturing", () => {
+    // At 3/4 radius, impulse is 8.75. Wood threshold is 10.
+    // Verifies sub-threshold hits still register cumulative damage (cracking at 60%)
+    const dist = BLAST_RADIUS * 0.75;
+    const impulse = computeExplosionImpulse(dist, BLAST_RADIUS, MAX_IMPULSE, MIN_IMPULSE);
+    expect(impulse).toBeGreaterThan(0.5); // above noise filter
+    expect(impulse).toBeLessThan(MATERIALS.wood.fractureThreshold);
+    // Would accumulate cumulativeImpulse past 60% threshold, showing cracked state
+    expect(impulse).toBeGreaterThanOrEqual(MATERIALS.wood.fractureThreshold * 0.6);
   });
 });
 

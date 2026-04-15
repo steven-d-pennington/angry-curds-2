@@ -17,6 +17,7 @@ import {
   DESTRUCTION_FLASH_CONFIG,
 } from "../engine/vfx/ParticleEmitter.js";
 import type { Rat } from "../entities/Rat.js";
+import type { Block } from "../entities/Block.js";
 
 export type GoudaState = "loaded" | "aiming" | "launched" | "detonated" | "settled" | "removed";
 
@@ -47,6 +48,9 @@ export class GoudaProjectile extends Entity {
 
   /** Fires for each rat killed by the explosion, for scoring/state tracking */
   onRatKilled: ((rat: Rat, worldX: number, worldY: number) => void) | null = null;
+
+  /** Fires for each block destroyed by the explosion, for scoring/VFX/removal */
+  onBlockDestroyed: ((block: Block, worldX: number, worldY: number) => void) | null = null;
 
   get state(): GoudaState {
     return this._state;
@@ -175,6 +179,9 @@ export class GoudaProjectile extends Entity {
       Vec2(cx + r, cy + r),
     );
 
+    // Collect blocks that fracture — cannot destroy bodies during queryAABB iteration
+    const fracturedBlocks: { block: Block; worldX: number; worldY: number }[] = [];
+
     let count = 0;
     this.engine.physics.world.queryAABB(aabb, (fixture) => {
       const target = fixture.getBody();
@@ -204,9 +211,19 @@ export class GoudaProjectile extends Entity {
         true,
       );
 
+      const ud = target.getUserData() as { type?: string; rat?: Rat; block?: Block } | null;
+
+      // Apply block damage through the damage accumulation system
+      if (ud?.type === "block" && ud.block) {
+        if (ud.block.applyImpulse(impulse)) {
+          const bPos = target.getWorldCenter();
+          fracturedBlocks.push({ block: ud.block, worldX: bPos.x, worldY: bPos.y });
+        }
+      }
+
       // Kill rats within blast radius
-      const ud = target.getUserData() as { type?: string; rat?: Rat } | null;
-      if (ud?.type === "rat" && ud.rat?.alive) {
+      if (ud?.type === "rat" && (ud as { rat?: Rat }).rat?.alive) {
+        const rat = (ud as { rat: Rat }).rat;
         const ratPos = target.getWorldCenter();
 
         // Rat kill VFX
@@ -216,13 +233,20 @@ export class GoudaProjectile extends Entity {
         this.engine.particles.emit(rScreen.x, rScreen.y, HIT_STAR_CONFIG);
         this.engine.particles.emit(rScreen.x, rScreen.y, DESTRUCTION_FLASH_CONFIG);
 
-        this.onRatKilled?.(ud.rat, ratPos.x, ratPos.y);
-        ud.rat.kill();
+        this.onRatKilled?.(rat, ratPos.x, ratPos.y);
+        rat.kill();
       }
 
       count++;
       return true; // continue querying
     });
+
+    // Process fractured blocks after queryAABB completes (safe to modify world now)
+    for (const { block, worldX, worldY } of fracturedBlocks) {
+      if (block.destroyed) continue;
+      block.destroyed = true;
+      this.onBlockDestroyed?.(block, worldX, worldY);
+    }
 
     return count;
   }

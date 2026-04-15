@@ -256,6 +256,10 @@ class GameSession {
       const gouda = shotManager.activeGouda;
       if (gouda && gouda.canDetonate) {
         gouda.onRatKilled = (rat, wx, wy) => state.onRatKilled(rat, wx, wy);
+        gouda.onBlockDestroyed = (block, wx, wy) => {
+          state.onBlockDestroyed(block, wx, wy);
+          this.engine.removeEntity(block);
+        };
         gouda.activateDetonation();
         screenFlash.trigger(0xffffff, 0.4, 0.1);
         cameraZoom.trigger(
