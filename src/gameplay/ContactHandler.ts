@@ -1,4 +1,5 @@
 import type { Contact, ContactImpulse } from "planck";
+import { Vec2 } from "planck";
 import type { Body } from "planck";
 import type { Block, BlockUserData } from "../entities/Block.js";
 import type { Rat, RatUserData } from "../entities/Rat.js";
@@ -39,6 +40,13 @@ function getMaxImpulse(impulse: ContactImpulse): number {
     if (v !== undefined && v > max) max = v;
   }
   return max;
+}
+
+/** Relative speed between two bodies. Resting contacts have near-zero relative velocity. */
+function relativeSpeed(a: Body, b: Body): number {
+  const va = a.getLinearVelocity();
+  const vb = b.getLinearVelocity();
+  return Vec2.sub(va, vb).length();
 }
 
 function getUserData(body: Body): EntityUserData {
@@ -97,15 +105,22 @@ export function setupContactHandler(engine: Engine, state: GameState, screenShak
         screenShake?.triggerFromImpulse(maxImpulse);
       }
 
-      // Block damage
-      if (udA?.type === "block") {
-        if (udA.block.applyImpulse(maxImpulse)) {
-          pendingBlockDestroys.push(udA.block);
+      // Block damage — velocity-gated to filter resting contact impulses.
+      // Resting blocks generate solver impulses every frame to maintain constraints,
+      // but have near-zero relative velocity. Actual impacts have significant speed.
+      const RESTING_SPEED_THRESHOLD = 0.5; // m/s
+      const isRestingContact = relativeSpeed(bodyA, bodyB) < RESTING_SPEED_THRESHOLD;
+
+      if (!isRestingContact) {
+        if (udA?.type === "block") {
+          if (udA.block.applyImpulse(maxImpulse)) {
+            pendingBlockDestroys.push(udA.block);
+          }
         }
-      }
-      if (udB?.type === "block") {
-        if (udB.block.applyImpulse(maxImpulse)) {
-          pendingBlockDestroys.push(udB.block);
+        if (udB?.type === "block") {
+          if (udB.block.applyImpulse(maxImpulse)) {
+            pendingBlockDestroys.push(udB.block);
+          }
         }
       }
 

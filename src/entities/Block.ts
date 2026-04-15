@@ -148,6 +148,14 @@ export class Block extends Entity {
 
   applyImpulse(impulse: number): boolean {
     if (this.destroyed) return false;
+    
+    // Secondary safety net: filter trivial impulse noise that slips past
+    // the velocity gate in ContactHandler. Primary filtering is velocity-based.
+    const MIN_IMPULSE_THRESHOLD = 0.5;
+    if (impulse < MIN_IMPULSE_THRESHOLD) {
+      return false;
+    }
+    
     this.cumulativeImpulse += impulse;
 
     // Show cracked sprite when past 60% of fracture threshold
