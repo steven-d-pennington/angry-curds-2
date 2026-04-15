@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 random.seed(42)  # Reproducible output
 
-ATLAS_W, ATLAS_H = 256, 256
+ATLAS_W, ATLAS_H = 256, 384
 
 # --- Color palettes (from art bible) ---
 CHEESE = {
@@ -477,6 +477,283 @@ def make_stone_dust(w, h, variant=0):
     return img
 
 
+def make_explosion_ring(w, h, variant=0):
+    """Expanding shockwave ring for Gouda detonation."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+
+    random.seed(700 + variant)
+
+    # Ring parameters scale with variant (expanding shockwave)
+    ring_radius = min(w, h) // 2 - 2
+    ring_width = max(2, 6 - variant * 2)
+    base_alpha = max(60, 220 - variant * 70)
+
+    # Gouda orange-red palette
+    gouda_glow = (0xFF, 0xAA, 0x33)
+    gouda_core = (0xFF, 0x6A, 0x22)
+    gouda_fade = (0xD4, 0x5A, 0x1A)
+
+    # Outer glow
+    for r in range(ring_radius, ring_radius - 6, -1):
+        t = (ring_radius - r) / 6
+        a = int(base_alpha * 0.3 * (1 - t))
+        c = lerp_color(gouda_fade, gouda_glow, t)
+        draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(*c, a), width=1)
+
+    # Main ring
+    for dr in range(-ring_width, ring_width + 1):
+        r = ring_radius - 3 + dr
+        if r < 1:
+            continue
+        t = 1.0 - abs(dr) / ring_width
+        a = int(base_alpha * t)
+        c = lerp_color(gouda_fade, gouda_core, t)
+        draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(*c, a), width=1)
+
+    # Bright core ring
+    core_r = ring_radius - 3
+    if core_r > 1:
+        draw.ellipse([cx - core_r, cy - core_r, cx + core_r, cy + core_r],
+                     outline=(*gouda_glow, min(255, base_alpha + 40)), width=2)
+
+    # Hot spot flares at cardinal points
+    for angle in range(0, 360, 90 + variant * 30):
+        rad = math.radians(angle + random.randint(-10, 10))
+        fx = cx + math.cos(rad) * (ring_radius - 3)
+        fy = cy + math.sin(rad) * (ring_radius - 3)
+        size = random.randint(2, 4)
+        draw.ellipse([fx - size, fy - size, fx + size, fy + size],
+                     fill=(255, 255, 200, min(255, base_alpha)))
+
+    img = img.filter(ImageFilter.GaussianBlur(radius=1.0))
+    return img
+
+
+def make_speed_blur(w, h, variant=0):
+    """Horizontal streak effect for Swiss piercing ability."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cy = h // 2
+
+    random.seed(750 + variant)
+
+    # Swiss cheese green-yellow speed palette
+    speed_core = (0x88, 0xEE, 0x66)
+    speed_mid = (0x66, 0xCC, 0x55)
+    speed_fade = (0x44, 0x99, 0x33)
+
+    # Multiple horizontal streaks
+    n_streaks = 3 + variant
+    for i in range(n_streaks):
+        y_off = cy + random.randint(-h // 3, h // 3)
+        streak_w = random.randint(w // 2, w - 4)
+        x_start = random.randint(1, w - streak_w - 1)
+        thickness = random.randint(1, 3)
+        alpha = random.randint(100, 200)
+
+        # Gradient from bright to fade along length
+        for x in range(x_start, x_start + streak_w):
+            t = (x - x_start) / streak_w
+            # Bright in middle, fade at ends
+            brightness = 1.0 - abs(t * 2 - 1) ** 2
+            c = lerp_color(speed_fade, speed_core, brightness)
+            a = int(alpha * brightness)
+            for dy in range(-thickness, thickness + 1):
+                y = y_off + dy
+                if 0 <= y < h:
+                    dt = 1.0 - abs(dy) / max(1, thickness)
+                    draw.point((x, y), fill=(*c, int(a * dt)))
+
+    # Core bright center line
+    draw.line([(2, cy), (w - 3, cy)], fill=(*speed_core, 180), width=1)
+
+    img = img.filter(ImageFilter.GaussianBlur(radius=0.8))
+    return img
+
+
+def make_cheese_fragment(w, h, variant=0):
+    """Small Parmesan shard sprite — angular, crystalline."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+
+    random.seed(800 + variant)
+
+    # Parmesan golden-brown palette
+    parm_hi = (0xFF, 0xE0, 0x90)
+    parm_mid = (0xD4, 0xB0, 0x60)
+    parm_sh = (0xA0, 0x80, 0x3A)
+    parm_crystal = (0xFF, 0xF0, 0xCC)
+
+    # Angular shard shape
+    n_pts = random.randint(4, 6)
+    pts = []
+    for i in range(n_pts):
+        angle = i * (2 * math.pi / n_pts) + random.uniform(-0.4, 0.4)
+        r = (min(w, h) // 2 - 1) * random.uniform(0.5, 1.0)
+        pts.append((int(cx + math.cos(angle) * r), int(cy + math.sin(angle) * r)))
+
+    # Drop shadow
+    spts = [(x + 1, y + 1) for x, y in pts]
+    draw.polygon(spts, fill=(*parm_sh, 100))
+
+    # Base shape
+    draw.polygon(pts, fill=(*parm_mid, 255), outline=(*OUTLINE, 200))
+
+    # Highlight facet (top-left)
+    hi_pts = [(int(cx + (x - cx) * 0.6 - 1), int(cy + (y - cy) * 0.6 - 1))
+              for x, y in pts[:n_pts // 2 + 1]]
+    if len(hi_pts) >= 3:
+        draw.polygon(hi_pts, fill=(*parm_hi, 170))
+
+    # Crystal sparkle
+    for _ in range(2):
+        sx = cx + random.randint(-w // 4, w // 4)
+        sy = cy + random.randint(-h // 4, h // 4)
+        draw.point((sx, sy), fill=(*parm_crystal, random.randint(150, 230)))
+
+    img = img.filter(ImageFilter.GaussianBlur(radius=0.4))
+    return img
+
+
+def make_confetti(w, h, variant=0):
+    """Colored celebration confetti particle."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+
+    random.seed(850 + variant)
+
+    # Festive colors: cheese gold, victory green, warm red, bright blue
+    colors = [
+        ((0xFF, 0xD7, 0x6E), (0xF5, 0xA6, 0x23)),  # gold
+        ((0x72, 0xDD, 0x5C), (0x42, 0xA0, 0x32)),   # green
+        ((0xFF, 0x66, 0x44), (0xCC, 0x33, 0x22)),    # red
+        ((0x66, 0xBB, 0xFF), (0x33, 0x88, 0xCC)),    # blue
+    ]
+    hi, mid = colors[variant % len(colors)]
+
+    # Confetti shape: small rectangle or diamond
+    if variant % 2 == 0:
+        # Rotated rectangle
+        angle = random.uniform(0.3, 1.2)
+        half_w = w // 2 - 1
+        half_h = h // 3
+        pts = []
+        for dx, dy in [(-half_w, -half_h), (half_w, -half_h), (half_w, half_h), (-half_w, half_h)]:
+            rx = cx + int(dx * math.cos(angle) - dy * math.sin(angle))
+            ry = cy + int(dx * math.sin(angle) + dy * math.cos(angle))
+            pts.append((rx, ry))
+        draw.polygon(pts, fill=(*mid, 230))
+        # Highlight
+        if len(pts) >= 3:
+            hi_pts = pts[:2] + [(cx, cy)]
+            draw.polygon(hi_pts, fill=(*hi, 180))
+    else:
+        # Diamond
+        draw.polygon([(cx, cy - h // 2 + 1), (cx + w // 2 - 1, cy),
+                       (cx, cy + h // 2 - 1), (cx - w // 2 + 1, cy)],
+                     fill=(*mid, 230))
+        draw.polygon([(cx, cy - h // 2 + 1), (cx + w // 2 - 1, cy), (cx, cy)],
+                     fill=(*hi, 180))
+
+    return img
+
+
+def make_dust_cloud(w, h, variant=0):
+    """Enhanced impact dust cloud (larger, denser than existing dust puffs)."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+    r = min(w, h) // 2 - 2
+
+    random.seed(900 + variant * 13)
+
+    # Warmer, denser dust
+    warm_offsets = [(6, 3, -2), (-2, 4, 4), (4, -2, 0)]
+    toff = warm_offsets[variant % 3]
+
+    base = tuple(max(0, min(255, DUST["mid"][i] + toff[i])) for i in range(3))
+    hi = tuple(max(0, min(255, DUST["highlight"][i] + toff[i])) for i in range(3))
+    sh = tuple(max(0, min(255, DUST["shadow"][i] + toff[i])) for i in range(3))
+
+    # More blobs for denser cloud
+    blobs = []
+    for _ in range(8 + variant * 2):
+        bx = cx + random.randint(-r * 2 // 3, r * 2 // 3)
+        by = cy + random.randint(-r * 2 // 3, r * 2 // 3)
+        br = random.randint(r // 4, r * 3 // 4)
+        blobs.append((bx, by, br))
+
+    # Shadow layer
+    for bx, by, br in blobs:
+        draw.ellipse([bx - br, by - br + 3, bx + br, by + br + 3], fill=(*sh, 50))
+
+    # Midtone
+    for bx, by, br in blobs:
+        draw.ellipse([bx - br, by - br, bx + br, by + br], fill=(*base, 90))
+
+    # Highlights
+    for bx, by, br in blobs[:4]:
+        hr = br * 2 // 3
+        draw.ellipse([bx - hr - 2, by - hr - 2, bx + hr - 2, by + hr - 2], fill=(*hi, 70))
+
+    # Internal wisps
+    for _ in range(5):
+        wx = cx + random.randint(-r // 3, r // 3)
+        wy = cy + random.randint(-r // 3, r // 3)
+        wr = random.randint(2, r // 4)
+        draw.ellipse([wx - wr, wy - wr, wx + wr, wy + wr], fill=(*sh, 35))
+
+    # Soft edge blur
+    img = img.filter(ImageFilter.GaussianBlur(radius=2.5))
+
+    # Brighten center
+    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    od = ImageDraw.Draw(overlay)
+    od.ellipse([cx - r // 3, cy - r // 3, cx + r // 3, cy + r // 3], fill=(*hi, 45))
+    overlay = overlay.filter(ImageFilter.GaussianBlur(radius=3.0))
+    img = Image.alpha_composite(img, overlay)
+
+    return img
+
+
+def make_ember(w, h, variant=0):
+    """Small glowing ember particle for Gouda trail."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    cx, cy = w // 2, h // 2
+
+    random.seed(950 + variant)
+
+    # Gouda ember palette: warm orange-red glow
+    ember_core = (0xFF, 0xCC, 0x44)
+    ember_mid = (0xFF, 0x88, 0x22)
+    ember_edge = (0xCC, 0x44, 0x11)
+
+    max_r = min(w, h) // 2 - 1
+
+    # Radial gradient glow
+    for r in range(max_r, 0, -1):
+        t = 1.0 - (r / max_r)
+        if t > 0.7:
+            c = lerp_color(ember_mid, ember_core, (t - 0.7) / 0.3)
+        elif t > 0.3:
+            c = lerp_color(ember_edge, ember_mid, (t - 0.3) / 0.4)
+        else:
+            c = ember_edge
+        a = int(40 + 200 * t * t)
+        draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(*c, a))
+
+    # Bright white-hot center
+    draw.ellipse([cx - 1, cy - 1, cx + 1, cy + 1], fill=(255, 255, 220, 255))
+
+    img = img.filter(ImageFilter.GaussianBlur(radius=0.6))
+    return img
+
+
 def build_atlas():
     """Pack all sprites into a 256x256 atlas and generate JSON manifest."""
     atlas = Image.new("RGBA", (ATLAS_W, ATLAS_H), (0, 0, 0, 0))
@@ -596,6 +873,103 @@ def build_atlas():
         }
         x += w + 2
     y_cursor += 50
+
+    # --- Row 7: Explosion rings (y=210) ---
+    x = 0
+    for i in range(3):
+        w, h = 48, 48
+        sprite = make_explosion_ring(w, h, variant=i)
+        atlas.paste(sprite, (x, y_cursor), sprite)
+        frames[f"explosion_ring_{i+1:02d}"] = {
+            "frame": {"x": x, "y": y_cursor, "w": w, "h": h},
+            "rotated": False,
+            "trimmed": False,
+            "spriteSourceSize": {"x": 0, "y": 0, "w": w, "h": h},
+            "sourceSize": {"w": w, "h": h},
+        }
+        x += w + 2
+    y_cursor += 50  # 48 + 2
+
+    # --- Row 8: Speed blurs (y=260) and cheese fragments ---
+    x = 0
+    blur_specs = [(48, 16), (64, 16)]
+    row_max_h = 0
+    for i, (w, h) in enumerate(blur_specs):
+        sprite = make_speed_blur(w, h, variant=i)
+        atlas.paste(sprite, (x, y_cursor), sprite)
+        frames[f"speed_blur_{i+1:02d}"] = {
+            "frame": {"x": x, "y": y_cursor, "w": w, "h": h},
+            "rotated": False,
+            "trimmed": False,
+            "spriteSourceSize": {"x": 0, "y": 0, "w": w, "h": h},
+            "sourceSize": {"w": w, "h": h},
+        }
+        x += w + 2
+        row_max_h = max(row_max_h, h)
+
+    # Cheese fragments on same row
+    frag_specs = [(16, 16), (16, 16), (12, 12), (14, 14)]
+    for i, (w, h) in enumerate(frag_specs):
+        sprite = make_cheese_fragment(w, h, variant=i)
+        atlas.paste(sprite, (x, y_cursor), sprite)
+        frames[f"cheese_fragment_{i+1:02d}"] = {
+            "frame": {"x": x, "y": y_cursor, "w": w, "h": h},
+            "rotated": False,
+            "trimmed": False,
+            "spriteSourceSize": {"x": 0, "y": 0, "w": w, "h": h},
+            "sourceSize": {"w": w, "h": h},
+        }
+        x += w + 2
+        row_max_h = max(row_max_h, h)
+    y_cursor += row_max_h + 2  # 16 + 2 = 18
+
+    # --- Row 9: Confetti and embers (y=278) ---
+    x = 0
+    for i in range(4):
+        w, h = 12, 12
+        sprite = make_confetti(w, h, variant=i)
+        atlas.paste(sprite, (x, y_cursor), sprite)
+        frames[f"confetti_{i+1:02d}"] = {
+            "frame": {"x": x, "y": y_cursor, "w": w, "h": h},
+            "rotated": False,
+            "trimmed": False,
+            "spriteSourceSize": {"x": 0, "y": 0, "w": w, "h": h},
+            "sourceSize": {"w": w, "h": h},
+        }
+        x += w + 2
+
+    # Embers
+    for i in range(2):
+        w, h = 12, 12
+        sprite = make_ember(w, h, variant=i)
+        atlas.paste(sprite, (x, y_cursor), sprite)
+        frames[f"ember_{i+1:02d}"] = {
+            "frame": {"x": x, "y": y_cursor, "w": w, "h": h},
+            "rotated": False,
+            "trimmed": False,
+            "spriteSourceSize": {"x": 0, "y": 0, "w": w, "h": h},
+            "sourceSize": {"w": w, "h": h},
+        }
+        x += w + 2
+    y_cursor += 14  # 12 + 2
+
+    # --- Row 10: Enhanced dust clouds (y=292) ---
+    x = 0
+    cloud_specs = [(64, 64), (48, 48), (32, 32)]
+    row_max_h = 0
+    for i, (w, h) in enumerate(cloud_specs):
+        sprite = make_dust_cloud(w, h, variant=i)
+        atlas.paste(sprite, (x, y_cursor), sprite)
+        frames[f"dust_cloud_{i+1:02d}"] = {
+            "frame": {"x": x, "y": y_cursor, "w": w, "h": h},
+            "rotated": False,
+            "trimmed": False,
+            "spriteSourceSize": {"x": 0, "y": 0, "w": w, "h": h},
+            "sourceSize": {"w": w, "h": h},
+        }
+        x += w + 2
+        row_max_h = max(row_max_h, h)
+    y_cursor += row_max_h + 2  # 64 + 2 = 66
 
     print(f"Atlas packed: {ATLAS_W}x{ATLAS_H}, content ends at y={y_cursor}")
     assert y_cursor <= ATLAS_H, f"Atlas overflow: content needs {y_cursor}px but budget is {ATLAS_H}px"

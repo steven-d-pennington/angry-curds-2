@@ -608,11 +608,12 @@ def process_atlas():
         # Extract frame
         frame_img = atlas.crop((x, y, x + w, y + h))
 
-        is_cheddar = name.startswith("cheddar_")
-        label = "Cheddar" if is_cheddar else "Rat"
+        is_cheese = (name.startswith("cheddar_") or name.startswith("gouda_") or
+                     name.startswith("swiss_") or name.startswith("parmesan_"))
+        label = "Cheese" if is_cheese else "Rat"
         print(f"  Enhancing {label}: {name} ({w}x{h} at {x},{y})")
 
-        if is_cheddar:
+        if is_cheese:
             enhanced = enhance_cheddar_frame(frame_img)
             cheddar_count += 1
         else:
