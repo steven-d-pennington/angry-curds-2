@@ -8,6 +8,10 @@ import type {
   BrieSplitConfig,
   ShotLifecycleConfig,
 } from "./SlingshotConfig.js";
+import {
+  BRIE_SPLIT_SPARKLE_CONFIG,
+  BRIE_SUB_TRAIL_CONFIG,
+} from "../engine/vfx/ParticleEmitter.js";
 
 export type BrieState = "loaded" | "aiming" | "launched" | "split" | "settled" | "removed";
 
@@ -151,6 +155,10 @@ export class BrieProjectile extends Entity {
       subs.push(sub);
     }
 
+    // Sparkle burst VFX at split point
+    const splitScreen = this.engine.worldToScreenPos(pos.x, pos.y);
+    this.engine.particles.emit(splitScreen.x, splitScreen.y, BRIE_SPLIT_SPARKLE_CONFIG);
+
     // Remove parent from physics world
     this.display.visible = false;
     this.body.setActive(false);
@@ -241,6 +249,10 @@ class SubProjectile extends Entity {
   private readonly engine: Engine;
   private readonly settledSpeedThreshold: number;
   private readonly settledDuration: number;
+  /** Mini trail emit timer. */
+  private trailEmitTimer = 0;
+  private trailDuration = 0.4; // Mini trail lasts 0.4s after split
+  private trailElapsed = 0;
 
   onResolved: (() => void) | null = null;
 
@@ -266,6 +278,15 @@ class SubProjectile extends Entity {
     const vel = this.body.getLinearVelocity();
     const speed = vel.length();
     const pos = this.body.getPosition();
+
+    // Mini trail VFX on sub-projectiles for a short duration after split
+    this.trailElapsed += dt;
+    this.trailEmitTimer += dt;
+    if (this.trailElapsed < this.trailDuration && this.trailEmitTimer >= 0.04) {
+      this.trailEmitTimer = 0;
+      const screen = this.engine.worldToScreenPos(pos.x, pos.y);
+      this.engine.particles.emit(screen.x, screen.y, BRIE_SUB_TRAIL_CONFIG);
+    }
 
     const margin = 2;
     const vw = this.engine.viewport.worldWidth;

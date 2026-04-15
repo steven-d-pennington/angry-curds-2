@@ -7,6 +7,10 @@ import type {
   SwissPierceConfig,
   ShotLifecycleConfig,
 } from "./SlingshotConfig.js";
+import {
+  SWISS_PIERCE_FLASH_CONFIG,
+  SWISS_PIERCE_EXIT_TRAIL_CONFIG,
+} from "../engine/vfx/ParticleEmitter.js";
 
 export type SwissState = "loaded" | "aiming" | "launched" | "piercing" | "settled" | "removed";
 
@@ -170,16 +174,27 @@ export class SwissProjectile extends Entity {
       f.setSensor(true);
     }
 
+    // Speed blur VFX at activation point
+    const pos = this.body.getPosition();
+    const screen = this.engine.worldToScreenPos(pos.x, pos.y);
+    this.engine.particles.emit(screen.x, screen.y, SWISS_PIERCE_FLASH_CONFIG);
+
     this.onPierceActivated?.();
     return true;
   }
 
   /**
    * Called by ContactHandler during piercing when Swiss overlaps a block.
-   * Records that one block has been pierced.
+   * Records that one block has been pierced and spawns exit trail VFX.
    */
   onBlockPierced(): void {
     this.hasPiercedBlock = true;
+
+    // Impact flash on the pierced block + exit trail behind Swiss
+    const pos = this.body.getPosition();
+    const screen = this.engine.worldToScreenPos(pos.x, pos.y);
+    this.engine.particles.emit(screen.x, screen.y, SWISS_PIERCE_FLASH_CONFIG);
+    this.engine.particles.emit(screen.x, screen.y, SWISS_PIERCE_EXIT_TRAIL_CONFIG);
   }
 
   /** End pierce mode: re-enable contact, reduce velocity. */

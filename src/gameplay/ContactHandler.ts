@@ -6,6 +6,7 @@ import type { Rat, RatUserData } from "../entities/Rat.js";
 import type { Engine } from "../engine/Engine.js";
 import type { GameState } from "./GameState.js";
 import type { ScreenShake } from "./ScreenShake.js";
+import type { ScreenFlash } from "../engine/vfx/ScreenFlash.js";
 import { audioManager } from "../audio/AudioManager.js";
 import {
   CHEESE_CRUMB_CONFIG,
@@ -17,9 +18,14 @@ import {
   HEAVY_WOOD_CONFIG,
   CHEESE_DEBRIS_CONFIG,
   RAT_KILL_BURST_CONFIG,
+  RAT_KILL_CONFETTI_CONFIG,
   HEAVY_STONE_CONFIG,
   STONE_CHIP_CONFIG,
   STONE_DUST_CONFIG,
+  SHOCKWAVE_RING_CONFIG,
+  WOOD_IMPACT_BURST_CONFIG,
+  STONE_IMPACT_BURST_CONFIG,
+  CHEESE_IMPACT_BURST_CONFIG,
 } from "../engine/vfx/ParticleEmitter.js";
 
 import type { BrieProjectile } from "./BrieProjectile.js";
@@ -64,7 +70,12 @@ function getUserData(body: Body): EntityUserData {
  * - Screen shake on heavy impacts
  * - Enhanced destruction VFX
  */
-export function setupContactHandler(engine: Engine, state: GameState, screenShake?: ScreenShake): void {
+export function setupContactHandler(
+  engine: Engine,
+  state: GameState,
+  screenShake?: ScreenShake,
+  screenFlash?: ScreenFlash,
+): void {
   const pendingBlockDestroys: Block[] = [];
   const pendingRatKills: Rat[] = [];
 
@@ -186,7 +197,7 @@ export function setupContactHandler(engine: Engine, state: GameState, screenShak
   engine.physics.step = (dt: number) => {
     originalStep(dt);
     state.tickSettling();
-    processPending(engine, state, pendingBlockDestroys, pendingRatKills);
+    processPending(engine, state, pendingBlockDestroys, pendingRatKills, screenFlash);
   };
 }
 
@@ -230,6 +241,7 @@ function processPending(
   state: GameState,
   blocks: Block[],
   rats: Rat[],
+  screenFlash?: ScreenFlash,
 ): void {
   while (blocks.length > 0) {
     const block = blocks.pop()!;
@@ -243,19 +255,37 @@ function processPending(
     // Flash at impact point
     engine.particles.emit(bScreen.x, bScreen.y, DESTRUCTION_FLASH_CONFIG);
 
-    // Material-specific debris
+    // Determine if this was a heavy impact (above 2x fracture threshold)
+    const isHeavyHit = block.cumulativeImpulse >= block.materialDef.fractureThreshold * 2;
+
+    // Material-specific debris + force-scaled impact burst for heavy hits
     if (block.material === "stone") {
       engine.particles.emit(bScreen.x, bScreen.y, HEAVY_STONE_CONFIG);
       engine.particles.emit(bScreen.x, bScreen.y, STONE_CHIP_CONFIG);
       engine.particles.emit(bScreen.x, bScreen.y, STONE_DUST_CONFIG);
+      if (isHeavyHit) {
+        engine.particles.emit(bScreen.x, bScreen.y, STONE_IMPACT_BURST_CONFIG);
+      }
     } else if (block.material === "wood") {
       engine.particles.emit(bScreen.x, bScreen.y, HEAVY_WOOD_CONFIG);
       engine.particles.emit(bScreen.x, bScreen.y, WOOD_SPLINTER_CONFIG);
       engine.particles.emit(bScreen.x, bScreen.y, HEAVY_DUST_CONFIG);
+      if (isHeavyHit) {
+        engine.particles.emit(bScreen.x, bScreen.y, WOOD_IMPACT_BURST_CONFIG);
+      }
     } else {
       // cheese_crate or default
       engine.particles.emit(bScreen.x, bScreen.y, CHEESE_DEBRIS_CONFIG);
       engine.particles.emit(bScreen.x, bScreen.y, HEAVY_DUST_CONFIG);
+      if (isHeavyHit) {
+        engine.particles.emit(bScreen.x, bScreen.y, CHEESE_IMPACT_BURST_CONFIG);
+      }
+    }
+
+    // Shockwave ring + screen flash on heavy impacts
+    if (isHeavyHit) {
+      engine.particles.emit(bScreen.x, bScreen.y, SHOCKWAVE_RING_CONFIG);
+      screenFlash?.trigger(0xffffff, 0.15, 0.08);
     }
 
     state.onBlockDestroyed(block, bPos.x, bPos.y);
@@ -267,9 +297,10 @@ function processPending(
     if (!rat.alive) continue;
     const pos = rat.body.getPosition();
 
-    // Spawn celebratory burst around rat
+    // Spawn enhanced celebratory burst around rat (confetti-style)
     const rScreen = engine.worldToScreenPos(pos.x, pos.y);
     engine.particles.emit(rScreen.x, rScreen.y, RAT_KILL_BURST_CONFIG);
+    engine.particles.emit(rScreen.x, rScreen.y, RAT_KILL_CONFETTI_CONFIG);
     engine.particles.emit(rScreen.x, rScreen.y, HIT_STAR_CONFIG);
     engine.particles.emit(rScreen.x, rScreen.y, DESTRUCTION_FLASH_CONFIG);
 

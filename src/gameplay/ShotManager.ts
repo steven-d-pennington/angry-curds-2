@@ -8,7 +8,16 @@ import { SwissProjectile } from "./SwissProjectile.js";
 import { Slingshot } from "./Slingshot.js";
 import { SlingshotController } from "./SlingshotController.js";
 import type { GameplayConfig, LaunchVfxConfig } from "./SlingshotConfig.js";
-import { CHEESE_CRUMB_CONFIG, LAUNCH_BURST_CONFIG, SPEED_TRAIL_CONFIG } from "../engine/vfx/ParticleEmitter.js";
+import {
+  CHEESE_CRUMB_CONFIG,
+  LAUNCH_BURST_CONFIG,
+  SPEED_TRAIL_CONFIG,
+  CHEDDAR_TRAIL_CONFIG,
+  BRIE_TRAIL_CONFIG,
+  GOUDA_TRAIL_CONFIG,
+  SWISS_TRAIL_CONFIG,
+  type ParticleConfig,
+} from "../engine/vfx/ParticleEmitter.js";
 import type { CardDeck } from "./CardDeck.js";
 
 /** Cheese type identifier matching design doc. */
@@ -359,9 +368,18 @@ export class ShotManager {
     }
   }
 
+  /** Pick the trail config for the current cheese type. */
+  private getTrailConfig(): ParticleConfig {
+    if (this.activePrimary instanceof BrieProjectile) return BRIE_TRAIL_CONFIG;
+    if (this.activePrimary instanceof GoudaProjectile) return GOUDA_TRAIL_CONFIG;
+    if (this.activePrimary instanceof SwissProjectile) return SWISS_TRAIL_CONFIG;
+    if (this.activePrimary instanceof CheeseProjectile) return CHEDDAR_TRAIL_CONFIG;
+    return SPEED_TRAIL_CONFIG;
+  }
+
   /**
-   * Emit speed trail particles behind the launched cheese for the first
-   * ~0.5 seconds of flight.
+   * Emit cheese-type-specific speed trail particles behind the launched cheese.
+   * Trail intensity scales with velocity (faster = more intense).
    */
   private updateSpeedTrail(dt: number): void {
     if (!this.speedTrailActive) return;
@@ -378,13 +396,27 @@ export class ShotManager {
     if (this.speedTrailEmitTimer >= this.launchVfxConfig.speedTrailInterval) {
       this.speedTrailEmitTimer = 0;
 
-      // Get current cheese position
+      // Get current cheese position and velocity
       if (this.activePrimary) {
-        const body = (this.activePrimary as unknown as { body: { getPosition(): { x: number; y: number } } }).body;
+        const body = (this.activePrimary as unknown as {
+          body: {
+            getPosition(): { x: number; y: number };
+            getLinearVelocity(): { x: number; y: number; length(): number };
+          };
+        }).body;
         if (body) {
           const pos = body.getPosition();
           const screen = this.engine.worldToScreenPos(pos.x, pos.y);
-          this.engine.particles.emit(screen.x, screen.y, SPEED_TRAIL_CONFIG);
+          const vel = body.getLinearVelocity();
+          const speed = vel.length();
+
+          // Scale trail intensity with velocity: faster = more particles
+          const trailConfig = this.getTrailConfig();
+          const velocityScale = Math.min(speed / 15, 1.5); // Normalize against typical launch speed
+          if (velocityScale > 0.3) {
+            // Only emit when moving fast enough
+            this.engine.particles.emit(screen.x, screen.y, trailConfig);
+          }
         }
       }
     }

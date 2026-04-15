@@ -4,7 +4,11 @@ import { DEFAULT_JUICE_CONFIG } from "./JuiceConfig.js";
 
 /**
  * Screen shake effect using decreasing sinusoidal oscillation.
- * Applies pixel offsets to the stage container so all layers shake together.
+ * Applies pixel offsets AND rotational shake to the stage container
+ * so all layers shake together.
+ *
+ * Intensity scales with impact force — heavier impacts produce more
+ * pronounced positional and rotational shake.
  */
 export class ScreenShake {
   private readonly stage: Container;
@@ -40,7 +44,7 @@ export class ScreenShake {
 
   /**
    * Trigger shake from a collision impulse. Only fires if impulse
-   * exceeds the configured threshold.
+   * exceeds the configured threshold. Intensity scales with impulse.
    */
   triggerFromImpulse(impulse: number): void {
     if (impulse < this.config.impulseThreshold) return;
@@ -56,6 +60,7 @@ export class ScreenShake {
     if (!this.active) {
       this.stage.x = 0;
       this.stage.y = 0;
+      this.stage.rotation = 0;
       return;
     }
 
@@ -64,6 +69,7 @@ export class ScreenShake {
       this.active = false;
       this.stage.x = 0;
       this.stage.y = 0;
+      this.stage.rotation = 0;
       return;
     }
 
@@ -73,9 +79,14 @@ export class ScreenShake {
     const angle = this.elapsed * this.config.frequency * Math.PI * 2;
     const offset = Math.sin(angle) * this.amplitude * decay;
 
-    // Apply in both axes with phase offset for more organic feel
+    // Apply positional shake in both axes with phase offset for organic feel
     this.stage.x = offset;
     this.stage.y = Math.cos(angle * 1.3) * this.amplitude * decay * 0.7;
+
+    // Rotational shake: small rotation proportional to amplitude.
+    // Max rotation ~0.02 rad (~1.1 deg) at amplitude 8, scales linearly.
+    const maxRotation = 0.0025 * this.amplitude;
+    this.stage.rotation = Math.sin(angle * 1.7) * maxRotation * decay;
   }
 
   /** Reset shake state (e.g. on level teardown). */
@@ -83,5 +94,6 @@ export class ScreenShake {
     this.active = false;
     this.stage.x = 0;
     this.stage.y = 0;
+    this.stage.rotation = 0;
   }
 }

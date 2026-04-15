@@ -23,6 +23,8 @@ import { ScreenShake } from "./gameplay/ScreenShake.js";
 import { SlowMotion } from "./gameplay/SlowMotion.js";
 import { CameraController } from "./gameplay/CameraController.js";
 import { DEFAULT_JUICE_CONFIG } from "./gameplay/JuiceConfig.js";
+import { ScreenFlash } from "./engine/vfx/ScreenFlash.js";
+import { CameraZoom } from "./engine/vfx/CameraZoom.js";
 
 // Reset default page styles so the canvas fills the window
 document.documentElement.style.margin = "0";
@@ -83,6 +85,8 @@ class GameSession {
   private screenShake: ScreenShake | null = null;
   private slowMotion: SlowMotion | null = null;
   private cameraController: CameraController | null = null;
+  private screenFlash: ScreenFlash | null = null;
+  private cameraZoom: CameraZoom | null = null;
   private juiceFrameCallback: ((dt: number) => void) | null = null;
 
   constructor(engine: Engine, levels: LevelManager) {
@@ -107,13 +111,18 @@ class GameSession {
     this.screenShake?.reset();
     this.slowMotion?.destroy();
     this.cameraController?.reset();
+    this.screenFlash?.reset();
+    this.cameraZoom?.reset();
     if (this.juiceFrameCallback) {
       this.engine.removeFrameCallback(this.juiceFrameCallback);
       this.juiceFrameCallback = null;
     }
-    // Reset stage position (shake/camera may have offset it)
+    // Reset stage position/rotation/scale (shake/camera/zoom may have offset it)
     this.engine.app.stage.x = 0;
     this.engine.app.stage.y = 0;
+    this.engine.app.stage.rotation = 0;
+    this.engine.app.stage.scale.set(1);
+    this.engine.app.stage.pivot.set(0);
 
     this.engine.destroyAllEntities();
     this.engine.physics.destroyAllDynamic();
@@ -127,6 +136,8 @@ class GameSession {
     this.screenShake = null;
     this.slowMotion = null;
     this.cameraController = null;
+    this.screenFlash = null;
+    this.cameraZoom = null;
   }
 
   /** Build and start a level with win/lose callbacks for the React overlay. */
@@ -162,9 +173,13 @@ class GameSession {
     const screenShake = new ScreenShake(this.engine.app.stage, juiceConfig.screenShake);
     const slowMotion = new SlowMotion(this.engine, juiceConfig.slowMotion);
     const cameraController = new CameraController(this.engine, juiceConfig.camera);
+    const screenFlash = new ScreenFlash(this.engine.app);
+    const cameraZoom = new CameraZoom(this.engine.app.stage);
     this.screenShake = screenShake;
     this.slowMotion = slowMotion;
     this.cameraController = cameraController;
+    this.screenFlash = screenFlash;
+    this.cameraZoom = cameraZoom;
 
     state.init(this.engine, popups, hud, slowMotion, screenShake);
 
@@ -172,8 +187,12 @@ class GameSession {
     this.juiceFrameCallback = (realDt: number) => {
       cameraController.update(realDt);
       screenShake.update(realDt);
-      // After shake sets stage.x/y, add camera pan offset
+      // After shake sets stage.x/y/rotation, add camera pan offset
       this.engine.app.stage.x += cameraController.offsetX;
+      // Update screen flash overlay
+      screenFlash.update(realDt);
+      // Update camera zoom punch
+      cameraZoom.update(realDt);
     };
     this.engine.addFrameCallback(this.juiceFrameCallback);
 
@@ -186,7 +205,7 @@ class GameSession {
       setTimeout(() => onLose(score), 1200);
     };
 
-    setupContactHandler(this.engine, state, screenShake);
+    setupContactHandler(this.engine, state, screenShake, screenFlash);
     loadLevel(levelData, this.engine, state);
 
     const shotManager = new ShotManager(this.engine, config, cardDeck);
@@ -213,15 +232,38 @@ class GameSession {
     const cardHand = new CardHand(this.engine, cardDeck, DEFAULT_CARD_DECK_CONFIG);
     this.cardHand = cardHand;
 
-    // Tap-to-split: tapping anywhere (outside card area) while a Brie
-    // is in flight triggers the split ability
+    // Tap-to-activate: tapping anywhere (outside card area) while a special
+    // cheese is in flight triggers its ability (split / detonate / pierce)
     const cardAreaHeight = cardHand.areaHeight;
     this.splitHandler = (e: PointerEvent) => {
       // Ignore taps in the card area at the top of the screen
       if (e.clientY < cardAreaHeight) return;
+
+      // Brie: tap to split
       const brie = shotManager.activeBrie;
       if (brie && brie.canSplit) {
         brie.activateSplit();
+        return;
+      }
+
+      // Gouda: tap to detonate (with screen flash + camera zoom)
+      const gouda = shotManager.activeGouda;
+      if (gouda && gouda.canDetonate) {
+        gouda.activateDetonation();
+        screenFlash.trigger(0xffffff, 0.4, 0.1);
+        cameraZoom.trigger(
+          1.08, 0.1, 0.2,
+          this.engine.canvasWidth, this.engine.canvasHeight,
+        );
+        screenShake.trigger(8);
+        return;
+      }
+
+      // Swiss: tap to pierce
+      const swiss = shotManager.activeSwiss;
+      if (swiss && swiss.canPierce) {
+        swiss.activatePierce();
+        return;
       }
     };
     this.engine.app.canvas.addEventListener("pointerdown", this.splitHandler);

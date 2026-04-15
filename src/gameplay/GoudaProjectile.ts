@@ -7,6 +7,11 @@ import type {
   GoudaExplosionConfig,
   ShotLifecycleConfig,
 } from "./SlingshotConfig.js";
+import {
+  GOUDA_EXPLOSION_CONFIG,
+  GOUDA_DUST_CONFIG,
+  SHOCKWAVE_RING_CONFIG,
+} from "../engine/vfx/ParticleEmitter.js";
 
 export type GoudaState = "loaded" | "aiming" | "launched" | "detonated" | "settled" | "removed";
 
@@ -132,6 +137,12 @@ export class GoudaProjectile extends Entity {
 
     const epicenter = this.body.getPosition();
     const affected = this.applyExplosionImpulse(epicenter.x, epicenter.y);
+
+    // Explosion VFX: radial debris + shockwave ring + heavy dust
+    const screen = this.engine.worldToScreenPos(epicenter.x, epicenter.y);
+    this.engine.particles.emit(screen.x, screen.y, GOUDA_EXPLOSION_CONFIG);
+    this.engine.particles.emit(screen.x, screen.y, GOUDA_DUST_CONFIG);
+    this.engine.particles.emit(screen.x, screen.y, SHOCKWAVE_RING_CONFIG);
 
     // Remove from physics world
     this.display.visible = false;
