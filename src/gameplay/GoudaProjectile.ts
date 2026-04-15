@@ -11,7 +11,12 @@ import {
   GOUDA_EXPLOSION_CONFIG,
   GOUDA_DUST_CONFIG,
   SHOCKWAVE_RING_CONFIG,
+  RAT_KILL_BURST_CONFIG,
+  RAT_KILL_CONFETTI_CONFIG,
+  HIT_STAR_CONFIG,
+  DESTRUCTION_FLASH_CONFIG,
 } from "../engine/vfx/ParticleEmitter.js";
+import type { Rat } from "../entities/Rat.js";
 
 export type GoudaState = "loaded" | "aiming" | "launched" | "detonated" | "settled" | "removed";
 
@@ -39,6 +44,9 @@ export class GoudaProjectile extends Entity {
 
   /** Fires when explosion occurs, providing affected body count */
   onDetonated: ((affectedCount: number) => void) | null = null;
+
+  /** Fires for each rat killed by the explosion, for scoring/state tracking */
+  onRatKilled: ((rat: Rat, worldX: number, worldY: number) => void) | null = null;
 
   get state(): GoudaState {
     return this._state;
@@ -195,6 +203,22 @@ export class GoudaProjectile extends Entity {
         targetPos,
         true,
       );
+
+      // Kill rats within blast radius
+      const ud = target.getUserData() as { type?: string; rat?: Rat } | null;
+      if (ud?.type === "rat" && ud.rat?.alive) {
+        const ratPos = target.getWorldCenter();
+
+        // Rat kill VFX
+        const rScreen = this.engine.worldToScreenPos(ratPos.x, ratPos.y);
+        this.engine.particles.emit(rScreen.x, rScreen.y, RAT_KILL_BURST_CONFIG);
+        this.engine.particles.emit(rScreen.x, rScreen.y, RAT_KILL_CONFETTI_CONFIG);
+        this.engine.particles.emit(rScreen.x, rScreen.y, HIT_STAR_CONFIG);
+        this.engine.particles.emit(rScreen.x, rScreen.y, DESTRUCTION_FLASH_CONFIG);
+
+        this.onRatKilled?.(ud.rat, ratPos.x, ratPos.y);
+        ud.rat.kill();
+      }
 
       count++;
       return true; // continue querying
