@@ -265,11 +265,8 @@ export class SwissProjectile extends Entity {
   }
 
   private resolve(): void {
-    // Re-enable contact in case we resolve during pierce
     if (this._state === "piercing") {
-      for (let f = this.body.getFixtureList(); f; f = f.getNext()) {
-        f.setSensor(false);
-      }
+      this.endPierce();
     }
     this._state = "settled";
     this.onResolved?.();
